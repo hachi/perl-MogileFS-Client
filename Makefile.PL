@@ -20,6 +20,7 @@ WriteMakefile(
         'IO::WrapTie'     => '2.102',
         'LWP::Simple'     => 0,
         fields            => 0,
+        'Test::More'      => 0,
     },
     dist                    => {
         CI                      => "cvs commit",
