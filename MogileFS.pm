@@ -269,26 +269,10 @@ sub new {
     return bless $fh;
 }
 
-sub path {
-    my MogileFS::NewFile $self = shift;
-
-    my $attrs = $self->_get_attrs;
-    return $attrs->{mogilefs_newfile_path};
-}
-
-sub key {
-    my MogileFS::NewFile $self = shift;
-
-    my $attrs = $self->_get_attrs;
-
-    # we're a setter
-    if (@_) {
-        return $attrs->{mogilefs_newfile_key} = shift;
-    }
-
-    # we're a getter
-    return $attrs->{mogilefs_newfile_key};
-}
+# some getter/setter functions
+sub path  { return _getset(shift, "path"); }
+sub key   { return _getset(shift, "key",   @_); }
+sub class { return _getset(shift, "class", @_); }
 
 sub close {
     my MogileFS::NewFile $self = shift;
@@ -322,6 +306,21 @@ sub close {
 # get a reference to the hash part of the $fh typeglob ref
 sub _get_attrs {
     return \%{*{$_[0]}};
+}
+
+sub _getset {
+    my MogileFS::NewFile $self = shift;
+    my $item = shift;
+
+    my $attrs = $self->_get_attrs;
+
+    # we're a setter
+    if (@_) {
+        return $attrs->{"mogilefs_newfile_$item"} = shift;
+    }
+
+    # we're a getter
+    return $attrs->{"mogilefs_newfile_$item"};
 }
 
 
