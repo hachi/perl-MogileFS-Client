@@ -23,7 +23,7 @@ package MogileFS;
 use strict;
 use Carp;
 use IO::WrapTie;
-use LWP::Simple;
+use LWP::UserAgent;
 use fields qw(root domain backend);
 
 sub new {
@@ -105,15 +105,28 @@ sub get_paths {
 # data for the file.
 sub get_file_data {
     # given a key, load some paths and get data
-    my MogileFS $self = shift;
-    my @paths = $self->get_paths(shift);
+    my MogileFS $self = $_[0];
+    my ($key, $opts) = ($_[1], $_[2]);
+
+    # old argument format was to specify noverify as the third argument
+    # so we have to convert this to an opts hashref if necessary
+    $opts ||= {};
+    $opts = { noverify => $opts } unless ref $opts;
+
+    my @paths = $self->get_paths($key, $opts->{noverify});
 
     # iterate over each
     foreach my $path (@paths) {
         if ($path =~ m!^http://!) {
             # try via HTTP
-            my $contents = LWP::Simple::get($path);
-            return \$contents if $contents;
+            my $ua = new LWP::UserAgent;
+            $ua->timeout($opts->{timeout} || 10);
+
+            my $res = $ua->get($path);
+            if ($res->is_success) {
+                my $contents = $res->content;
+                return \$contents;
+            }
 
         } else {
             # open the file from disk and just grab it all
