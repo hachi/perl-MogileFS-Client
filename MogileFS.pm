@@ -52,6 +52,7 @@ sub errstr {
 sub new_file {
     my MogileFS $self = shift;
     my ($key, $class, $bytes) = @_;
+    $bytes += 0;
 
     my $res = $self->{backend}->do_request
         ("create_open", {
