@@ -100,6 +100,30 @@ sub get_paths {
     return map { "$self->{root}/$_"} @paths;
 }
 
+# get a hashref of the domains we know about in the format of
+#   { domain_name => { class_name => mindevcount, class_name => mindevcount, ... }, ... }
+sub get_domains {
+    my MogileFS $self = shift;
+
+    my $res = $self->{backend}->do_request("get_domains", {})
+        or return undef;
+
+    my $ret;
+    foreach my $i (1..$res->{domains}) {
+        $ret->{$res->{"domain$i"}} = {
+            map {
+                $res->{"domain${i}class${_}name"} =>
+                    $res->{"domain${i}class${_}mindevcount"}
+            } (1..$res->{"domain${i}classes"})
+        };
+    }
+
+    use Data::Dumper;
+    print STDERR Data::Dumper::Dumper($ret);
+    
+    return $ret;
+}
+
 # given a key, returns a scalar reference pointing at a string containing
 # the contents of the file. takes one parameter; a scalar key to get the
 # data for the file.
