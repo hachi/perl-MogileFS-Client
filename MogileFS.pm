@@ -795,7 +795,7 @@ sub PRINT {
     # now make socket if we don't have one
     if (!$self->{sock} && $self->{content_length}) {
         $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
-            or _fail("unable to open socket: $!");
+            or _fail("unable to open socket to $self->{host}: $!");
         $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{content_length}\r\n\r\n");
     }
 
@@ -828,7 +828,7 @@ sub CLOSE {
     # if we're closed and we have no sock...
     unless ($self->{sock}) {
         $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
-            or _fail("unable to open socket: $!");
+            or _fail("unable to open socket to $self->{host}: $!");
         $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{length}\r\n\r\n");
         $self->{sock}->print($self->{data});
     }
