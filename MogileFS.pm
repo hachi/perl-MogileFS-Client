@@ -22,6 +22,7 @@ package MogileFS;
 
 use strict;
 use Carp;
+use IO::WrapTie;
 use fields qw(root domain backend);
 
 sub new {
@@ -49,7 +50,7 @@ sub errstr {
 # available for writing
 sub new_file {
     my MogileFS $self = shift;
-    my ($key, $class) = @_;
+    my ($key, $class, $bytes) = @_;
 
     my $res = $self->{backend}->do_request
         ("create_open", {
@@ -59,14 +60,26 @@ sub new_file {
         }) or return undef;
 
     # create a MogileFS::NewFile object, based off of IO::File
-    return MogileFS::NewFile->new(
-                                  mg    => $self,
-                                  fid   => $res->{fid},
-                                  path  => $res->{path},
-                                  devid => $res->{devid},
-                                  class => $class,
-                                  key   => $key
-                                  );
+    if ($res->{path} =~ m!^http://!) {
+        return IO::WrapTie::wraptie('MogileFS::NewHTTPFile', 
+                                          mg    => $self,
+                                          fid   => $res->{fid},
+                                          path  => $res->{path},
+                                          devid => $res->{devid},
+                                          class => $class,
+                                          key   => $key,
+                                          content_length => $bytes+0,
+                                          );
+    } else {
+        return MogileFS::NewFile->new(
+                                      mg    => $self,
+                                      fid   => $res->{fid},
+                                      path  => $res->{path},
+                                      devid => $res->{devid},
+                                      class => $class,
+                                      key   => $key
+                                      );
+    }
 }
 
 sub get_paths {
@@ -79,7 +92,9 @@ sub get_paths {
             key    => $key,
         }) or return undef;
 
-    return map { "$self->{root}/" . $res->{"path$_"} } (1..$res->{paths});
+    my @paths = map { $res->{"path$_"} } (1..$res->{paths});
+    return @paths if scalar(@paths) > 0 && $paths[0] =~ m!^http://!;
+    return map { "$self->{root}/$_"} @paths;
 }
 
 # TODO: delete method on MogileFS::NewFile object
@@ -123,9 +138,13 @@ sub _init {
 
     # FIXME: add actual validation
     {
-        $self->{root} = $args{root} or
-            _fail("constructor requires parameter 'root'");
+        # root is only needed for NFS based installations
+        unless (ref $args{hosts} && $args{hosts}->[0] =~ /:/) {
+            $self->{root} = $args{root} or
+                _fail("constructor requires parameter 'root' for non-HTTP setups");
+        }
 
+        # get domain (required)
         $self->{domain} = $args{domain} or
             _fail("constructor requires parameter 'domain'");
         
@@ -488,6 +507,196 @@ sub _getset {
 
     # we're a getter
     return $attrs->{"mogilefs_newfile_$item"};
+}
+
+################################################################################
+# MogileFS::HTTPFile object
+# NOTE: This is meant to be used within IO::WrapTie...
+#
+
+package MogileFS::NewHTTPFile;
+
+use fields ('host',
+            'sock', # IO::Socket; created only when we need it
+            'uri',
+            'data', # buffered data we have
+            'pos', # simulated file position
+            'length', # length of data field
+            'content_length', # declared length of data we will be receiving (not required)
+            'mg',
+            'fid',
+            'devid',
+            'class',
+            'key',
+            'path', # full URL to save data to
+            );
+
+sub TIEHANDLE {
+    my MogileFS::NewHTTPFile $self = shift;
+    $self = fields::new($self) unless ref $self;
+
+    my %args = @_;
+    return undef unless $args{path} =~ m!http://(.+?)(/.+)$!;
+
+    $self->{host} = $1;
+    $self->{uri} = $2;
+    $self->{data} = '';
+    $self->{length} = 0;
+    $self->{content_length} = $args{content_length} + 0;
+    $self->{pos} = 0;
+    $self->{$_} = $args{$_} foreach qw(mg fid devid class key path);
+    
+    return $self;
+}
+*new = *TIEHANDLE;
+
+sub PRINT {
+    my MogileFS::NewHTTPFile $self = shift;
+
+    # get data to send to server
+    my $data = shift;
+    my $newlen = length $data;
+    $self->{pos} += $newlen;
+
+    # now make socket if we don't have one
+    if (!$self->{sock} && $self->{content_length}) {
+        $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
+            or die "Error: unable to open socket: $!\n";
+        $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{content_length}\r\n\r\n");
+    }
+
+    # write some data to our socket
+    if ($self->{sock}) {
+        # store on data if we're under 1k
+        if ($self->{length} < 1024) {
+            if ($self->{length} + $newlen > 1024) {
+                $self->{length} = 1024;
+                $self->{data} .= substr($data, 0, 1024 - $self->{length});
+            } else {
+                $self->{length} += $newlen;
+                $self->{data} .= $data;
+            }
+        }
+
+        # actually write
+        $self->{sock}->print($data);
+    } else {
+        # or not, just stick it on our queued data
+        $self->{data} .= $data;
+        $self->{length} += $newlen;
+    }
+}
+*print = *PRINT;
+
+# get/set functions
+sub _getset {
+    my MogileFS::NewHTTPFile $self = shift;
+    my $what = shift;
+    
+    if (@_) {
+        # note: we're a TIEHANDLE interface, so we're not QUITE like a
+        # normal class... our parameters tend to come in via an arrayref
+        my $val = shift;
+        $val = shift(@$val) if ref $val eq 'ARRAY';
+        return $self->{$what} = $val;
+    } else {
+        return $self->{$what};
+    }
+}
+sub path  { _getset(shift, 'path');      }
+sub class { _getset(shift, 'class', @_); }
+sub key   { _getset(shift, 'key', @_);   }
+
+sub CLOSE {
+    my MogileFS::NewHTTPFile $self = shift;
+
+    # if we're closed and we have no sock...
+    unless ($self->{sock}) {
+        $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
+            or die "Error: unable to open socket: $!\n";
+        $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{length}\r\n\r\n");
+        $self->{sock}->print($self->{data});
+    }
+    
+    # get response from put
+    if ($self->{sock}) {
+        my $line = $self->{sock}->getline;
+        if ($line =~ m!^HTTP/\d+\.\d+\s+(\d+)!) {
+            # all 2xx responses are success
+            unless ($1 >= 200 && $1 <= 299) {
+                $@ = "HTTP response $1 from upload\n";
+                return undef;
+            }
+        } else {
+            $@ = "Response line not understood: $line\n";
+            return undef;
+        }
+        $self->{sock}->close;
+    }
+
+    my MogileFS $mg = $self->{mg};
+    my $domain = $mg->{domain};
+
+    my $fid   = $self->{fid};
+    my $devid = $self->{devid};
+    my $path  = $self->{path};
+
+    my $key = shift || $self->{key};
+
+    $mg->{backend}->do_request
+        ("create_close", {
+            fid    => $fid,
+            devid  => $devid,
+            domain => $domain,
+            size   => $self->{content_length} ? $self->{content_length} : $self->{length},
+            key    => $key,
+            path   => $path,
+        }) or return undef;
+
+    return 1;
+}
+*close = *CLOSE;
+
+sub TELL {
+    # return our current pos
+    return $_[0]->{pos};
+}
+*tell = *TELL;
+
+sub SEEK {
+    # simply set pos...
+    die "ERROR: Seek past end of file\n" if $_[1] > $_[0]->{length};
+    $_[0]->{pos} = $_[1];
+}
+*seek = *SEEK;
+
+sub EOF {
+    return ($_[0]->{pos} >= $_[0]->{length}) ? 1 : 0;
+}
+*eof = *EOF;
+
+sub BINMODE {
+    # no-op, we're always in binary mode
+}
+*binmode = *BINMODE;
+
+sub READ {
+    my MogileFS::NewHTTPFile $self = shift;
+    my $count = $_[1] + 0;
+    
+    my $max = $self->{length} - $self->{pos};
+    $max = $count if $count < $max;
+
+    $_[0] = substr($self->{data}, $self->{pos}, $max);
+    $self->{pos} += $max;
+
+    return $max;
+}
+*read = *READ;
+
+sub AUTOLOAD {
+    use vars qw($AUTOLOAD);
+    warn "Error: $AUTOLOAD not implemented.\n";
 }
 
 1;
