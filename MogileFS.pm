@@ -496,7 +496,7 @@ sub do_request {
     # ERR <errcode> <errstr>
     if ($line =~ /^ERR\s+(\w+)\s*(\S*)/) {
         $self->{'lasterr'} = $1;
-        $self->{'lasterrstr'} = $2 || undef;
+        $self->{'lasterrstr'} = $2 ? _unescape_url_string($2) : undef;
         _debug("LASTERR: $1 $2");
         return undef;
     }
@@ -594,6 +594,13 @@ sub _escape_url_string {
     my $str = shift;
     $str =~ s/([^a-zA-Z0-9_\,\-.\/\\\: ])/uc sprintf("%%%02x",ord($1))/eg;
     $str =~ tr/ /+/;
+    return $str;
+}
+
+sub _unescape_url_string {
+    my $str = shift;
+    $str =~ s/%([a-fA-F0-9][a-fA-F0-9])/pack("C", hex($1))/eg;
+    $str =~ tr/+/ /;
     return $str;
 }
 
