@@ -38,6 +38,13 @@ sub reload {
     return $self->_init(@_);
 }
 
+sub errstr {
+    my MogileFS $self = shift;
+    return undef unless $self;
+
+    return $self->{backend}->errstr;
+}
+
 # returns MogileFS::NewFile object, or undef if no device
 # available for writing
 sub new_file {
@@ -250,6 +257,7 @@ sub do_request {
     my $line = <$sock>;
     _debug("RESPONSE: $line");
 
+    # ERR <errcode> <errstr>
     if ($line =~ /^ERR\s+(\w+)\s*(\S*)/) {
         $self->{'lasterr'} = $1;
         $self->{'lasterrstr'} = $2 || undef;
@@ -269,7 +277,9 @@ sub do_request {
 }
 
 sub errstr {
-    # FIXME: return lasterr - lasterrstr?
+    my MogileFS::Backend $self = shift;
+
+    return join(" ", $self->{'lasterr'}, $self->{'lasterrstr'});
 }
 
 
