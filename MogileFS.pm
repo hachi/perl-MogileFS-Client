@@ -15,12 +15,14 @@
 # FIXME: add POD docs (Michael?)
 #
 
+################################################################################
+# MogileFS class
+#
 package MogileFS;
 
 use strict;
-use IO::Socket::INET;
 use Carp;
-use fields qw(root domain hosts host_dead lasterr lasterrstr);
+use fields qw(root domain backend);
 
 sub new {
     my MogileFS $self = shift;
@@ -28,21 +30,19 @@ sub new {
 
     my %args = @_;
 
-    # FIXME: add validation
+    # FIXME: add actual validation
     {
         $self->{root} = $args{root} or
-            croak "MogileFS: constructor requires parameter 'root'";
-
-        $self->{hosts} = $args{hosts} or
-            croak "MogileFS: constructor requires parameter 'hosts'";
+            _fail("constructor requires parameter 'root'");
 
         $self->{domain} = $args{domain} or
-            croak "MogileFS: constructor requires parameter 'domain'";
+            _fail("constructor requires parameter 'domain'");
+
+        $self->{backend} = new MogileFS::Backend ( hosts => $args{hosts} ) or
+            _fail("cannot instantiate MogileFS::Backend");
     }
 
-    $self->{host_dead} = {}; # FIXME: keep a real hash of dead hosts
-
-    debug("MogileFS object: ", $self);
+    _debug("MogileFS object: ", $self);
 
     return $self;
 }
@@ -53,11 +53,12 @@ sub new_file {
     my MogileFS $self = shift;
     my ($key, $class) = @_;
 
-    my $res = $self->_do_request("create_open", {
-        domain => $self->{domain},
-        class  => $class,
-        key    => $key,
-    }) or return undef;
+    my $res = $self->{backend}->do_request
+        ("create_open", {
+            domain => $self->{domain},
+            class  => $class,
+            key    => $key,
+        }) or return undef;
 
     # create a MogileFS::NewFile object, based off of IO::File
     return MogileFS::NewFile->new(
@@ -74,48 +75,207 @@ sub get_paths {
     my MogileFS $self = shift;
     my $key = shift;
 
-    my $res = $self->_do_request("get_paths", {
-        domain => $self->{domain},
-        key    => $key,
-    }) or return undef;
+    my $res = $self->{backend}->do_request
+        ("get_paths", {
+            domain => $self->{domain},
+            key    => $key,
+        }) or return undef;
 
     return map { "$self->{root}/" . $res->{"path$_"} } (1..$res->{paths});
 }
 
+# TODO: delete method on MogileFS::NewFile object
 sub delete {
     my MogileFS $self = shift;
     my $key = shift;
 
-    $self->_do_request("delete", {
-        domain => $self->{domain},
-        key    => $key,
-    }) or return undef;
+    $self->{backend}->do_request
+        ("delete", {
+            domain => $self->{domain},
+            key    => $key,
+        }) or return undef;
 
     return 1;
 }
 
-sub errstr {
-    # FIXME: return lasterr - lasterrstr?
+################################################################################
+# MogileFS class methods
+#
+
+sub _fail {
+    croak "MogileFS: $_[0]";
 }
 
-sub debug {
-    return unless $MogileFS::DEBUG;
+sub _debug {
+    return 1 unless $MogileFS::DEBUG;
 
     my $msg = shift;
     my $ref = shift;
     chomp $msg;
 
     use Data::Dumper;
-    print STDERR "$msg";
-    print STDERR Dumper($ref) if $ref;
-    print STDERR "\n";
-
-    return;
+    print STDERR "$msg\n" . Dumper($ref) . "\n";
+    return 1;
 }
 
-######################################################################
-# Server communications
+
+################################################################################
+# MogileFS::Admin class
 #
+package MogileFS::Admin;
+
+use strict;
+use Carp;
+use fields qw(backend);
+
+sub new {
+    my MogileFS::Admin $self = shift;
+    $self = fields::new($self) unless ref $self;
+
+    my %args = @_;
+
+    $self->{backend} = new MogileFS::Backend ( hosts => $args{hosts} )
+        or _fail("couldn't instantiate MogileFS::Backend");
+
+    _debug("MogileFS object: ", $self);
+
+    return $self;
+}
+
+sub get_hosts {
+    my MogileFS::Admin $self = shift;
+    my $hostid = shift;
+
+    my $args = $hostid ? { hostid => $hostid } : {};
+    my $res = $self->{backend}->do_request("get_hosts", $args)
+        or return undef;
+
+    my @ret = ();
+    foreach my $ct (1..$res->{hosts}) {
+        push @ret, { map { $_ => $res->{"host${ct}_$_"} } 
+                     qw(hostid status hostname hostip remoteroot) };
+    }
+
+    return \@ret;
+}
+
+sub get_devices {
+    my MogileFS::Admin $self = shift;
+    my $devid = shift;
+
+    my $args = $devid ? { devid => $devid } : {};
+    my $res = $self->{backend}->do_request("get_devices", $args)
+        or return undef;
+
+    my @ret = ();
+    foreach my $ct (1..$res->{devices}) {
+        push @ret, { (map { $_ => $res->{"dev${ct}_$_"} } qw(devid hostid status)),
+                     (map { $_ => $res->{"dev${ct}_$_"}+0 } qw(mb_total mb_used)) };
+    }
+
+    return \@ret;
+
+}
+
+
+################################################################################
+# MogileFS::Admin class methods
+#
+
+sub _fail {
+    croak "MogileFS::Admin: $_[0]";
+}
+
+*_debug = *MogileFS::_debug;
+
+
+######################################################################
+# MogileFS::Backend class
+#
+package MogileFS::Backend;
+
+use strict;
+use Carp;
+use IO::Socket::INET;
+use fields qw(hosts host_dead lasterr lasterrstr);
+
+sub new {
+    my MogileFS::Backend $self = shift;
+    $self = fields::new($self) unless ref $self;
+
+    my %args = @_;
+
+    # FIXME: add actual validation
+    {
+        $self->{hosts} = $args{hosts} or
+            _fail("constructor requires parameter 'hosts'");
+
+        _fail("'hosts' argument must be an arrayref")
+            unless ref $self->{hosts} eq 'ARRAY';
+
+        _fail("'hosts' argument must be of form: 'host:port'")
+            if grep(! /:\d+$/, @{$self->{hosts}});
+    }
+
+    $self->{host_dead} = {};
+
+    _debug("MogileFS object: ", $self);
+
+    return $self;
+}
+
+sub do_request {
+    my MogileFS::Backend $self = shift;
+    my ($cmd, $args) = @_;
+
+    _fail("invalid arguments to do_request")
+        unless $cmd && $args;
+
+    # FIXME: cache socket in $self?
+    my $sock = $self->_get_sock
+        or return undef;
+    _debug("SOCK: $sock");
+
+    my $argstr = _encode_url_string(%$args);
+
+    $sock->print("$cmd $argstr\r\n");
+    _debug("REQUEST: $cmd $argstr");
+
+    my $line = <$sock>;
+    _debug("RESPONSE: $line");
+
+    if ($line =~ /^ERR\s+(\w+)\s*(\S*)/) {
+        $self->{'lasterr'} = $1;
+        $self->{'lasterrstr'} = $2 || undef;
+        _debug("LASTERR: $1 $2");
+        return undef;
+    }
+
+    # OK <arg_len> <response>
+    if ($line =~ /^OK\s+\d*\s*(\S*)/) {
+        my $args = _decode_url_string($1);
+        _debug("RETURN_VARS: ", $args);
+        return $args;
+    }
+
+    _fail("invalid response from server");
+    return undef;
+}
+
+sub errstr {
+    # FIXME: return lasterr - lasterrstr?
+}
+
+
+################################################################################
+# MogileFS::Backend class methods
+#
+
+sub _fail {
+    croak "MogileFS::Backend: $_[0]";
+}
+
+*_debug = *MogileFS::_debug;
 
 sub _sock_to_host { # (host)
     my $host = shift;
@@ -129,7 +289,7 @@ sub _sock_to_host { # (host)
 }
 
 sub _get_sock {
-    my MogileFS $self = shift;
+    my MogileFS::Backend $self = shift;
     return undef unless $self;
 
     my $size = scalar(@{$self->{hosts}});
@@ -147,54 +307,12 @@ sub _get_sock {
         last if $sock = _sock_to_host($host);
 
         # mark sock as dead
-        debug("marking host dead: $host @ $now");
+        _debug("marking host dead: $host @ $now");
         $self->{host_dead}->{$host} = $now;
     }
 
     return $sock;
 }
-
-sub _do_request {
-    my MogileFS $self = shift;
-    my ($cmd, $args) = @_;
-
-    die "MogileFS: invalid arguments to _do_request"
-        unless $cmd && $args;
-
-    # FIXME: cache socket in $self?
-    my $sock = $self->_get_sock
-        or return undef;
-    debug("SOCK: $sock");
-
-    my $argstr = _encode_url_string(%$args);
-
-    $sock->print("$cmd $argstr\r\n");
-    debug("REQUEST: $cmd $argstr");
-
-    my $line = <$sock>;
-    debug("RESPONSE: $line");
-
-    if ($line =~ /^ERR\s+(\w+)\s*(\S*)/) {
-        $self->{'lasterr'} = $1;
-        $self->{'lasterrstr'} = $2 || undef;
-        debug("LASTERR: $1 $2");
-        return undef;
-    }
-
-    # OK <arg_len> <response>
-    if ($line =~ /^OK\s+\d*\s*(\S*)/) {
-        my $args = _decode_url_string($1);
-        debug("RETURN_VARS: ", $args);
-        return $args;
-    }
-
-    croak "MogileFS: invalid response from server";
-    return undef;
-}
-
-######################################################################
-# Data encoding
-#
 
 sub _escape_url_string {
     my $str = shift;
@@ -258,7 +376,7 @@ sub new {
     # modules later on (in our case, Image::Size) may want to seek around
     # in the file and do some reads.
     my $fh = new IO::File "+>$file"
-        or die "couldn't open: $file";
+        or _fail("couldn't open: $file");
 
     my $attr = _get_attrs($fh);
 
@@ -292,16 +410,27 @@ sub close {
 
     my $key = shift || $attr->{mogilefs_newfile_key};
 
-    $mg->_do_request("create_close", {
-        fid    => $fid,
-        devid  => $devid,
-        domain => $domain,
-        key    => $key,
-        path   => $path,
-    }) or return undef;
+    $mg->{backend}->do_request
+        ("create_close", {
+            fid    => $fid,
+            devid  => $devid,
+            domain => $domain,
+            key    => $key,
+            path   => $path,
+        }) or return undef;
 
     return 1;
 }
+
+################################################################################
+# MogileFS::NewFile class methods
+#
+
+sub _fail {
+    croak "MogileFS::NewFile: $_[0]";
+}
+
+*_debug = *MogileFS::debug;
 
 # get a reference to the hash part of the $fh typeglob ref
 sub _get_attrs {
@@ -322,6 +451,5 @@ sub _getset {
     # we're a getter
     return $attrs->{"mogilefs_newfile_$item"};
 }
-
 
 1;
