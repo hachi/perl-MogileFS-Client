@@ -100,6 +100,8 @@ sub errstr {
 }
 
 sub debug {
+    return unless $MogileFS::DEBUG;
+
     my $msg = shift;
     my $ref = shift;
     chomp $msg;
