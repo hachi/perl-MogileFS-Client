@@ -189,6 +189,39 @@ sub rename {
     return 1;
 }
 
+# used to get a list of keys matching a certain prefix.  expected arguments:
+#   ( $prefix, $after, $limit )
+# prefix specifies what you want to get a list of.  after is the item specified
+# as a return value from this function last time you called it.  limit is optional
+# and defaults to 1000 keys returned.
+#
+# if you expect an array of return values, returns:
+#   ($after, $keys)
+# but if you expect only a single value, you just get the arrayref of keys.  the
+# value $after is to be used as $after when you call this function again.
+#
+# when there are no more keys in the list, you will get back undef(s).
+sub list_keys {
+    my MogileFS $self = shift;
+    my ($prefix, $after, $limit) = @_;
+
+    my $res = $self->{backend}->do_request
+        ("list_keys", {
+            domain => $self->{domain},
+            prefix => $prefix,
+            after => $after,
+            limit => $limit,
+        }) or return undef;
+
+    # construct our list of keys and the new after value
+    my $resafter = $res->{next_after};
+    my $reslist = [];
+    for (my $i = 1; $i <= $res->{key_count}+0; $i++) {
+        push @$reslist, $res->{"key_$i"};
+    }
+    return wantarray ? ($resafter, $reslist) : $reslist;
+}
+
 ################################################################################
 # MogileFS class methods
 #
