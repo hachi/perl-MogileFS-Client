@@ -47,6 +47,13 @@ sub errstr {
     return $self->{backend}->errstr;
 }
 
+# expects as argument a hashref of "standard-ip" => "preferred-ip"
+sub set_pref_ip {
+    my MogileFS $self = shift;
+    $self->{backend}->set_pref_ip(shift)
+        if $self->{backend};
+}
+
 # returns MogileFS::NewFile object, or undef if no device
 # available for writing
 sub new_file {
@@ -466,6 +473,8 @@ sub _mod_class {
 package MogileFS::Backend;
 
 use strict;
+no strict 'refs';
+
 use Carp;
 use IO::Socket::INET;
 use Socket qw( MSG_NOSIGNAL PF_INET IPPROTO_TCP SOCK_STREAM );
@@ -476,9 +485,10 @@ use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
 	    'lasterr',      # string: \w+ identifer of last error
 	    'lasterrstr',   # string: english of last error
 	    'sock_cache',   # cached socket to mogilefsd tracker
+           'pref_ip',      # hashref; { ip => preferred ip }
 	    );
 
-use vars qw($FLAG_NOSIGNAL);
+use vars qw($FLAG_NOSIGNAL $PROTO_TCP);
 eval { $FLAG_NOSIGNAL = MSG_NOSIGNAL; };
 
 sub new {
@@ -493,6 +503,14 @@ sub reload {
     return undef unless $self;
 
     return $self->_init(@_);
+}
+
+sub set_pref_ip {
+    my MogileFS::Backend $self = shift;
+    $self->{pref_ip} = shift;
+    $self->{pref_ip} = undef
+        unless $self->{pref_ip} &&
+               ref $self->{pref_ip} eq 'HASH';
 }
 
 sub do_request {
@@ -575,15 +593,72 @@ sub _fail {
 
 *_debug = *MogileFS::_debug;
 
+sub _connect_sock { # sock, sin, timeout
+    my ($sock, $sin, $timeout) = @_;
+    $timeout ||= 0.25;
+
+    # make the socket non-blocking for the connection if wanted, but
+    # unconditionally set it back to blocking mode at the end
+
+    if ($timeout) {
+        IO::Handle::blocking($sock, 0);
+    } else {
+        IO::Handle::blocking($sock, 1);
+    }
+
+    my $ret = connect($sock, $sin);
+
+    if (!$ret && $timeout && $!==EINPROGRESS) {
+
+        my $win='';
+        vec($win, fileno($sock), 1) = 1;
+
+        if (select(undef, $win, undef, $timeout) > 0) {
+            $ret = connect($sock, $sin);
+            # EISCONN means connected & won't re-connect, so success
+            $ret = 1 if !$ret && $!==EISCONN;
+        }
+    }
+
+    # turn blocking back on, as we expect to do blocking IO on our sockets
+    IO::Handle::blocking($sock, 1) if $timeout;
+
+    return $ret;
+}
+
 sub _sock_to_host { # (host)
+    my MogileFS::Backend $self = shift;
     my $host = shift;
 
-    # FIXME: do non-blocking IO
-    return IO::Socket::INET->new(PeerAddr => $host,
-                                 Proto    => 'tcp',
-                                 Blocking => 1,
-                                 Timeout  => 1, # 1 sec?
-                                 );
+    # create a socket and try to do a non-blocking connect
+    my ($ip, $port) = $host =~ /^(.*):(\d+)$/;
+    my $sock = "Sock_$host";
+    my $connected = 0;
+    my $proto = $PROTO_TCP ||= getprotobyname('tcp');
+    my $sin;
+
+    # try preferred ips
+    if ($self->{pref_ip} && (my $prefip = $self->{pref_ip}->{$ip})) {
+        _debug("using preferred ip $prefip over $ip");
+        socket($sock, PF_INET, SOCK_STREAM, $proto);
+        $sin = Socket::sockaddr_in($port, Socket::inet_aton($prefip));
+        if (_connect_sock($sock, $sin, 0.1)) {
+            $connected = 1;
+        } else {
+            _debug("failed connect to preferred ip $prefip");
+            close $sock;
+        }
+    }
+
+    # now try the original ip
+    unless ($connected) {
+        socket($sock, PF_INET, SOCK_STREAM, $proto);
+        $sin = Socket::sockaddr_in($port, Socket::inet_aton($ip));
+        return undef unless _connect_sock($sock, $sin);
+    }
+
+    # just throw back the socket we have so far
+    return $sock;
 }
 
 sub _init {
@@ -627,7 +702,7 @@ sub _get_sock {
         next if $self->{host_dead}->{$host} &&
                 $self->{host_dead}->{$host} > $now - 5;
 
-        last if $sock = _sock_to_host($host);
+        last if $sock = $self->_sock_to_host($host);
 
         # mark sock as dead
         _debug("marking host dead: $host @ $now");
