@@ -100,63 +100,6 @@ sub get_paths {
     return map { "$self->{root}/$_"} @paths;
 }
 
-# get a hashref of the domains we know about in the format of
-#   { domain_name => { class_name => mindevcount, class_name => mindevcount, ... }, ... }
-sub get_domains {
-    my MogileFS $self = shift;
-
-    my $res = $self->{backend}->do_request("get_domains", {})
-        or return undef;
-
-    my $ret;
-    foreach my $i (1..$res->{domains}) {
-        $ret->{$res->{"domain$i"}} = {
-            map {
-                $res->{"domain${i}class${_}name"} =>
-                    $res->{"domain${i}class${_}mindevcount"}
-            } (1..$res->{"domain${i}classes"})
-        };
-    }
-
-    return $ret;
-}
-
-# create a new domain
-sub create_domain {
-    my MogileFS $self = shift;
-    my $domain = shift;
-
-    my $res = $self->{backend}->do_request("create_domain", { domain => $domain });
-    return undef unless $res->{domain} eq $domain;
-    
-    return 1;
-}
-
-# create a new class within a domain
-sub create_class {
-    my MogileFS $self = shift;
-    my ($domain, $class, $mindevcount, $verb) = @_;
-    $verb ||= 'create';
-    
-    my $res = $self->{backend}->do_request("${verb}_class", {
-        domain => $domain,
-        class => $class,
-        mindevcount => $mindevcount,
-    });
-    return undef unless $res->{class} eq $class;
-    
-    return 1;
-}
-
-# update a class's mindevcount within a domain
-sub update_class {
-    my MogileFS $self = shift;
-
-    # a simple passthrough to create, but specify that it should be doing
-    # an update
-    return $self->create_class(@_, 'update');
-}
-
 # given a key, returns a scalar reference pointing at a string containing
 # the contents of the file. takes one parameter; a scalar key to get the
 # data for the file.
@@ -304,6 +247,55 @@ sub get_devices {
 
 }
 
+# get a hashref of the domains we know about in the format of
+#   { domain_name => { class_name => mindevcount, class_name => mindevcount, ... }, ... }
+sub get_domains {
+    my MogileFS::Admin $self = shift;
+
+    my $res = $self->{backend}->do_request("get_domains", {})
+        or return undef;
+
+    my $ret;
+    foreach my $i (1..$res->{domains}) {
+        $ret->{$res->{"domain$i"}} = {
+            map {
+                $res->{"domain${i}class${_}name"} =>
+                    $res->{"domain${i}class${_}mindevcount"}
+            } (1..$res->{"domain${i}classes"})
+        };
+    }
+
+    return $ret;
+}
+
+# create a new domain
+sub create_domain {
+    my MogileFS::Admin $self = shift;
+    my $domain = shift;
+
+    my $res = $self->{backend}->do_request("create_domain", { domain => $domain });
+    return undef unless $res->{domain} eq $domain;
+    
+    return 1;
+}
+
+# create a class within a domain
+sub create_class {
+    my MogileFS::Admin $self = shift;
+
+    # wrapper around _mod_class(create)
+    return $self->_mod_class(@_, 'create');
+}
+
+
+# update a class's mindevcount within a domain
+sub update_class {
+    my MogileFS::Admin $self = shift;
+
+    # wrapper around _mod_class(update)
+    return $self->_mod_class(@_, 'update');
+}
+
 
 ################################################################################
 # MogileFS::Admin class methods
@@ -314,6 +306,22 @@ sub _fail {
 }
 
 *_debug = *MogileFS::_debug;
+
+# modify a class within a domain
+sub _mod_class {
+    my MogileFS::Admin $self = shift;
+    my ($domain, $class, $mindevcount, $verb) = @_;
+    $verb ||= 'create';
+    
+    my $res = $self->{backend}->do_request("${verb}_class", {
+        domain => $domain,
+        class => $class,
+        mindevcount => $mindevcount,
+    });
+    return undef unless $res->{class} eq $class;
+    
+    return 1;
+}
 
 
 ######################################################################
