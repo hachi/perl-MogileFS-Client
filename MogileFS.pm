@@ -1187,7 +1187,7 @@ sub CLOSE {
 
     # set a message in $! and $@
     my $err = sub {
-        $! = $@ = "$_[0]\n";
+        $@ = "$_[0]\n";
         return undef;
     };
 
