@@ -986,7 +986,8 @@ sub PRINT {
 
     # write some data to our socket
     if ($self->{sock}) {
-        # store on data if we're under 1k
+        # save the first 1024 bytes of data so that we can seek back to it
+        # and do some work later
         if ($self->{length} < 1024) {
             if ($self->{length} + $newlen > 1024) {
                 $self->{length} = 1024;
