@@ -148,6 +148,26 @@ sub delete {
     return 1;
 }
 
+# this method renames a file.  it returns an undef on error (only a fatal error
+# is considered as undef; "file didn't exist" isn't an error).
+sub rename {
+    my MogileFS $self = shift;
+    my ($fkey, $tkey) = @_;
+
+    my $rv = $self->{backend}->do_request
+        ("rename", {
+            domain   => $self->{domain},
+            from_key => $fkey,
+            to_key   => $tkey,
+        });
+
+    # if it's unknown_key, not an error
+    return undef unless defined $rv ||
+                        $self->{backend}->{lasterr} eq 'unknown_key';
+
+    return 1;
+}
+
 ################################################################################
 # MogileFS class methods
 #
