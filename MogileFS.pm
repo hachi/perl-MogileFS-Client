@@ -183,6 +183,17 @@ sub _init {
             $self->{backend} = MogileFS::Backend->new( hosts => $args{hosts} );
         }
         _fail("cannot instantiate MogileFS::Backend") unless $self->{backend};
+
+        # we want to see if the backend server is indeed there,
+        # so we'll temporarily make a MogileFS::Admin object
+        # to ping it and see if we get a response
+        my $adm = MogileFS::Admin->new( hosts => $self->{backend}->{hosts} )
+            or _fail("couldn't construct MogileFS::Admin object");
+
+        # FIXME: more lightweight request
+        # ask backend for its domains
+        $adm->get_domains
+            or _fail("couldn't connect to mogilefsd backend");
     }
 
     _debug("MogileFS object: [$self]", $self);
