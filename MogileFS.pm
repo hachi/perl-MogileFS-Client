@@ -509,6 +509,7 @@ use Carp;
 use IO::Socket::INET;
 use Socket qw( MSG_NOSIGNAL PF_INET IPPROTO_TCP SOCK_STREAM );
 use Errno qw( EINPROGRESS EWOULDBLOCK EISCONN );
+use POSIX qw( close );
 
 use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
 	    'host_dead',    # "$host:$port" -> $time  (of last connect failure)
@@ -551,8 +552,11 @@ sub _wait_for_readability {
     vec($rin, $fileno, 1) = 1;
     my $nfound = select($rin, undef, undef, $timeout);
 
-    return 0 unless defined $nfound;
-    return $nfound ? 1 : 0;
+    unless ($nfound) {
+        POSIX::close($fileno);
+        return 0;
+    }
+    return 1;
 }
 
 sub do_request {
