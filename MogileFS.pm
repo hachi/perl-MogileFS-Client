@@ -553,11 +553,8 @@ sub _wait_for_readability {
     vec($rin, $fileno, 1) = 1;
     my $nfound = select($rin, undef, undef, $timeout);
 
-    unless ($nfound) {
-        POSIX::close($fileno);
-        return 0;
-    }
-    return 1;
+    # undef/0 are failure, 1 is success
+    return $nfound ? 1 : 0;
 }
 
 sub do_request {
@@ -600,8 +597,10 @@ sub do_request {
     }
 
     # wait up to 3 seconds for the socket to come to life
-    return _fail("socket never became readable")
-        unless _wait_for_readability(fileno($sock), 3);
+    unless (_wait_for_readability(fileno($sock), 3)) {
+        close($sock);
+        return _fail("socket never became readable");
+    }
 
     my $line = <$sock>;
     _debug("RESPONSE: $line");
