@@ -139,10 +139,7 @@ sub _init {
     # FIXME: add actual validation
     {
         # root is only needed for NFS based installations
-        unless (ref $args{hosts} && $args{hosts}->[0] =~ /:/) {
-            $self->{root} = $args{root} or
-                _fail("constructor requires parameter 'root' for non-HTTP setups");
-        }
+        $self->{root} = $args{root};
 
         # get domain (required)
         $self->{domain} = $args{domain} or
