@@ -83,6 +83,18 @@ sub get_paths {
     return map { "$self->{root}/" . $res->{"path$_"} } (1..$res->{paths});
 }
 
+sub delete {
+    my MogileFS $self = shift;
+    my $key = shift;
+
+    $self->_do_request("delete", {
+        domain => $self->{domain},
+        key    => $key,
+    }) or return undef;
+
+    return 1;
+}
+
 sub errstr {
     # FIXME: return lasterr - lasterrstr?
 }
@@ -225,23 +237,6 @@ sub new {
     $attr->{"mogilefs_newfile_$_"} = $args{$_} foreach qw(mg fid devid key path);
 
     return bless $fh;
-}
-
-sub delete {
-    my MogileFS::NewFile $self = shift;
-
-    my $attr = $self->_get_attrs;
-
-    my $mg  = $attr->{mogilefs_newfile_mg};
-    my $key = $attr->{mogilefs_newfile_key};
-    my $domain = $mg->{domain};
-    
-    $mg->_do_request("delete", {
-        domain => $domain,
-        key    => $key,
-    }) or return undef;
-
-    return 1;
 }
 
 sub close {
