@@ -66,25 +66,41 @@ sub new_file {
             domain => $self->{domain},
             class  => $class,
             key    => $key,
+            multi_dest => 1,
         }) or return undef;
 
+    my $dests = [];  # [ [devid,path], [devid,path], ... ]
+
+    # determine old vs. new format to populate destinations
+    unless (exists $res->{dev_count}) {
+        push @$dests, [ $res->{devid}, $res->{path} ];
+    } else {
+        for my $i (1..$res->{dev_count}) {
+            push @$dests, [ $res->{"devid_$i"}, $res->{"path_$i"} ];
+        }
+    }
+
+    my $main_dest = shift @$dests;
+    my ($main_devid, $main_path) = ($main_dest->[0], $main_dest->[1]);
+
     # create a MogileFS::NewFile object, based off of IO::File
-    if ($res->{path} =~ m!^http://!) {
-        return IO::WrapTie::wraptie('MogileFS::NewHTTPFile', 
-                                          mg    => $self,
-                                          fid   => $res->{fid},
-                                          path  => $res->{path},
-                                          devid => $res->{devid},
-                                          class => $class,
-                                          key   => $key,
-                                          content_length => $bytes+0,
-                                          );
+    if ($main_path =~ m!^http://!) {
+        return IO::WrapTie::wraptie('MogileFS::NewHTTPFile',
+                                    mg    => $self,
+                                    fid   => $res->{fid},
+                                    path  => $main_path,
+                                    devid => $main_devid,
+                                    backup_dests => $dests,
+                                    class => $class,
+                                    key   => $key,
+                                    content_length => $bytes+0,
+                                    );
     } else {
         return MogileFS::NewFile->new(
                                       mg    => $self,
                                       fid   => $res->{fid},
-                                      path  => $res->{path},
-                                      devid => $res->{devid},
+                                      path  => $main_path,
+                                      devid => $main_devid,
                                       class => $class,
                                       key   => $key
                                       );
@@ -493,13 +509,13 @@ use Carp;
 use IO::Socket::INET;
 use Socket qw( MSG_NOSIGNAL PF_INET IPPROTO_TCP SOCK_STREAM );
 use Errno qw( EINPROGRESS EWOULDBLOCK EISCONN );
-    
+
 use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
 	    'host_dead',    # "$host:$port" -> $time  (of last connect failure)
 	    'lasterr',      # string: \w+ identifer of last error
 	    'lasterrstr',   # string: english of last error
 	    'sock_cache',   # cached socket to mogilefsd tracker
-           'pref_ip',      # hashref; { ip => preferred ip }
+	    'pref_ip',      # hashref; { ip => preferred ip }
 	    );
 
 use vars qw($FLAG_NOSIGNAL $PROTO_TCP);
@@ -895,30 +911,64 @@ use fields ('host',
             'class',
             'key',
             'path',           # full URL to save data to
+            'backup_dests',
             );
 
 sub path  { _getset(shift, 'path');      }
 sub class { _getset(shift, 'class', @_); }
 sub key   { _getset(shift, 'key', @_);   }
 
+sub _parse_url {
+    my MogileFS::NewHTTPFile $self = shift;
+    my $url = shift;
+    return 0 unless $url =~ m!http://(.+?)(/.+)$!;
+    $self->{host} = $1;
+    $self->{uri} = $2;
+    return 1;
+}
+
 sub TIEHANDLE {
     my MogileFS::NewHTTPFile $self = shift;
     $self = fields::new($self) unless ref $self;
 
     my %args = @_;
-    return undef unless $args{path} =~ m!http://(.+?)(/.+)$!;
+    return undef unless $self->_parse_url($args{path});
 
-    $self->{host} = $1;
-    $self->{uri} = $2;
     $self->{data} = '';
     $self->{length} = 0;
+    $self->{backup_dests} = $args{backup_dests} || [];
     $self->{content_length} = $args{content_length} + 0;
     $self->{pos} = 0;
     $self->{$_} = $args{$_} foreach qw(mg fid devid class key path);
-    
+
     return $self;
 }
 *new = *TIEHANDLE;
+
+sub _connect_sock {
+    my MogileFS::NewHTTPFile $self = shift;
+    return 1 if $self->{sock};
+
+    my @down_hosts;
+
+    while (!$self->{sock} && $self->{host}) {
+        return 1 if $self->{sock} =
+            IO::Socket::INET->new(PeerAddr => $self->{host},
+                                  TimeOut => 3);
+
+        push @down_hosts, $self->{host};
+        if (my $dest = shift @{$self->{backup_dests}}) {
+            # dest is [$devid,$path]
+            $self->_parse_url($dest->[1]) or _fail("bogus URL");
+            $self->{path} = $dest->[1];
+            $self->{devid} = $dest->[0];
+        } else {
+            $self->{host} = undef;
+        }
+    }
+
+    _fail("unable to open socket to storage node (tried: @down_hosts): $!");
+}
 
 sub PRINT {
     my MogileFS::NewHTTPFile $self = shift;
@@ -930,8 +980,7 @@ sub PRINT {
 
     # now make socket if we don't have one
     if (!$self->{sock} && $self->{content_length}) {
-        $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
-            or _fail("unable to open socket to $self->{host}: $!");
+        $self->_connect_sock;
         $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{content_length}\r\n\r\n");
     }
 
@@ -963,12 +1012,11 @@ sub CLOSE {
 
     # if we're closed and we have no sock...
     unless ($self->{sock}) {
-        $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
-            or _fail("unable to open socket to $self->{host}: $!");
+        $self->_connect_sock;
         $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{length}\r\n\r\n");
         $self->{sock}->print($self->{data});
     }
-    
+
     # get response from put
     if ($self->{sock}) {
         my $line = $self->{sock}->getline;
