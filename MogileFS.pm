@@ -536,6 +536,8 @@ sub do_request {
 
     my $line = <$sock>;
     _debug("RESPONSE: $line");
+    return _fail("socket closed on read")
+        unless defined $line;
 
     # ERR <errcode> <errstr>
     if ($line =~ /^ERR\s+(\w+)\s*(\S*)/) {
