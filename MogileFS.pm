@@ -247,6 +247,29 @@ sub get_devices {
 
 }
 
+# get a hashref of statistics on how the MogileFS server is doing.  there are several
+# sections of statistics, in this form:
+# { 
+#     replication => { "domain-name" => { "class-name" => { devcount => filecount }, ... }, ... },
+# }
+sub get_stats {
+    my MogileFS::Admin $self = shift;
+    my $ret = {};
+
+    # do the request, default to request all stats if they didn't specify any
+    push @_, 'all' unless @_;
+    my $res = $self->{backend}->do_request("stats", { map { $_ => 1 } @_ })
+        or return undef;
+
+    # get replication statistics
+    foreach my $i (1..$res->{"replicationcount"}) {
+        $ret->{replication}->{$res->{"replication${i}domain"}}->{$res->{"replication${i}class"}}->{$res->{"replication${i}devcount"}} = $res->{"replication${i}files"};
+    }
+
+    # return the created response
+    return $ret;
+}
+
 # get a hashref of the domains we know about in the format of
 #   { domain_name => { class_name => mindevcount, class_name => mindevcount, ... }, ... }
 sub get_domains {
