@@ -509,7 +509,7 @@ use Carp;
 use IO::Socket::INET;
 use Socket qw( MSG_NOSIGNAL PF_INET IPPROTO_TCP SOCK_STREAM );
 use Errno qw( EINPROGRESS EWOULDBLOCK EISCONN );
-use POSIX qw( close );
+import POSIX ();
 
 use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
 	    'host_dead',    # "$host:$port" -> $time  (of last connect failure)
