@@ -71,6 +71,22 @@ sub new_file {
                                   );
 }
 
+sub get_paths {
+    my MogileFS $self = shift;
+    my $key = shift;
+
+    my $res = $self->_do_request("get_paths", {
+        domain => $self->{domain},
+        key    => $key,
+    }) or return undef;
+
+    return map { "$self->{root}/" . $res->{"path$_"} } (1..$res->{paths});
+}
+
+sub errstr {
+    # FIXME: return lasterr - lasterrstr?
+}
+
 sub debug {
     my $msg = shift;
     my $ref = shift;
@@ -195,7 +211,11 @@ sub new {
 
     my $file = "$mg->{root}/$args{path}";
 
-    my $fh = new IO::File ">$file"
+    # Note: we open the file for read/write (+) with clobber (>) because
+    # although we mostly want to just clobber it and start afresh, some
+    # modules later on (in our case, Image::Size) may want to seek around
+    # in the file and do some reads.
+    my $fh = new IO::File "+>$file"
         or die "couldn't open: $file";
 
     my $attr = _get_attrs($fh);
@@ -224,22 +244,6 @@ sub delete {
     return 1;
 }
 
-sub get_paths {
-    my MogileFS::NewFile $self = shift;
-    my %args = @_;
-
-    my $mg  = $self->{mogilefs_newfile_mg};
-    my $key = $self->{key};
-    my $domain = $mg->{domain};
-
-    my $res = $mg->_do_request("get_paths", {
-        domain => $domain,
-        key    => $key,
-    }) or return undef;
-
-    return map { $res->{"path$_"} } (1..$res->{paths});
-}
-
 sub close {
     my MogileFS::NewFile $self = shift;
 
@@ -249,14 +253,13 @@ sub close {
     # get a reference to the hash part of the $fh typeglob ref
     my $attr = $self->_get_attrs;
 
-    my $mg    = $attr->{mogilefs_newfile_mg};
+    my MogileFS $mg = $attr->{mogilefs_newfile_mg};
     my $fid   = $attr->{mogilefs_newfile_fid};
     my $devid = $attr->{mogilefs_newfile_devid};
     my $path  = $attr->{mogilefs_newfile_path};
     my $key   = $attr->{mogilefs_newfile_key};
     my $domain = $mg->{domain};
 
-    my MogileFS $mg = $attr->{mogilefs_newfile_mg};
     $mg->_do_request("create_close", {
         fid    => $fid,
         devid  => $devid,
