@@ -52,7 +52,6 @@ sub new {
 sub new_file {
     my MogileFS $self = shift;
     my ($key, $class) = @_;
-    croak "MogileFS: requires key" unless length($key);
 
     my $res = $self->_do_request("create_open", {
         domain => $self->{domain},
@@ -189,7 +188,7 @@ sub _do_request {
         return $args;
     }
 
-    croak("MogileFS: invalid response from server");
+    croak "MogileFS: invalid response from server";
     return undef;
 }
 
@@ -243,6 +242,7 @@ package MogileFS::NewFile;
 
 use IO::File;
 use base 'IO::File';
+use Carp;
 
 sub new {
     my MogileFS::NewFile $self = shift;
@@ -276,6 +276,20 @@ sub path {
     return $attrs->{mogilefs_newfile_path};
 }
 
+sub key {
+    my MogileFS::NewFile $self = shift;
+
+    my $attrs = $self->_get_attrs;
+
+    # we're a setter
+    if (@_) {
+        return $attrs->{mogilefs_newfile_key} = shift;
+    }
+
+    # we're a getter
+    return $attrs->{mogilefs_newfile_key};
+}
+
 sub close {
     my MogileFS::NewFile $self = shift;
 
@@ -286,11 +300,13 @@ sub close {
     my $attr = $self->_get_attrs;
 
     my MogileFS $mg = $attr->{mogilefs_newfile_mg};
+    my $domain = $mg->{domain};
+
     my $fid   = $attr->{mogilefs_newfile_fid};
     my $devid = $attr->{mogilefs_newfile_devid};
     my $path  = $attr->{mogilefs_newfile_path};
-    my $key   = $attr->{mogilefs_newfile_key};
-    my $domain = $mg->{domain};
+
+    my $key = shift || $attr->{mogilefs_newfile_key};
 
     $mg->_do_request("create_close", {
         fid    => $fid,
