@@ -128,15 +128,22 @@ sub get_file_data {
 }
 
 # TODO: delete method on MogileFS::NewFile object
+# this method returns undef only on a fatal error such as inability to actually
+# delete a resource and inability to contact the server.  attempting to delete
+# something that doesn't exist counts as success, as it doesn't exist.
 sub delete {
     my MogileFS $self = shift;
     my $key = shift;
 
-    $self->{backend}->do_request
+    my $rv = $self->{backend}->do_request
         ("delete", {
             domain => $self->{domain},
             key    => $key,
-        }) or return undef;
+        });
+
+    # if it's unknown_key, not an error
+    return undef unless defined $rv ||
+                        $self->{backend}->{lasterr} eq 'unknown_key';
 
     return 1;
 }
