@@ -863,7 +863,7 @@ sub CLOSE {
 
     my $key = shift || $self->{key};
 
-    $mg->{backend}->do_request
+    my $rv = $mg->{backend}->do_request
         ("create_close", {
             fid    => $fid,
             devid  => $devid,
@@ -871,7 +871,14 @@ sub CLOSE {
             size   => $self->{content_length} ? $self->{content_length} : $self->{length},
             key    => $key,
             path   => $path,
-        }) or return undef;
+        });
+    unless ($rv) {
+        # set $@, as our callers expect $@ to contain the error message that
+        # failed during a close.  since we failed in the backend, we have to
+        # do this manually.
+        $@ = "$mg->{backend}->{lasterr}: $mg->{backend}->{lasterrstr}";
+        return undef;
+    }
 
     return 1;
 }
