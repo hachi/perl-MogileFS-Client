@@ -118,9 +118,6 @@ sub get_domains {
         };
     }
 
-    use Data::Dumper;
-    print STDERR Data::Dumper::Dumper($ret);
-    
     return $ret;
 }
 
