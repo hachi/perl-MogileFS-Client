@@ -106,21 +106,17 @@ sub get_paths {
 sub get_file_data {
     # given a key, load some paths and get data
     my MogileFS $self = $_[0];
-    my ($key, $opts) = ($_[1], $_[2]);
+    my ($key, $timeout) = ($_[1], $_[2]);
 
-    # old argument format was to specify noverify as the third argument
-    # so we have to convert this to an opts hashref if necessary
-    $opts ||= {};
-    $opts = { noverify => $opts } unless ref $opts;
-
-    my @paths = $self->get_paths($key, $opts->{noverify});
+    my @paths = $self->get_paths($key, 1);
+    return undef unless @paths;
 
     # iterate over each
     foreach my $path (@paths) {
         if ($path =~ m!^http://!) {
             # try via HTTP
             my $ua = new LWP::UserAgent;
-            $ua->timeout($opts->{timeout} || 10);
+            $ua->timeout($timeout || 10);
 
             my $res = $ua->get($path);
             if ($res->is_success) {
