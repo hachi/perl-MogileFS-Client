@@ -123,7 +123,34 @@ sub _sock_to_host { # (host)
     return IO::Socket::INET->new(PeerAddr => $host,
                                  Proto    => 'tcp',
                                  Blocking => 1,
+                                 Timeout  => 1, # 1 sec?
                                  );
+}
+
+sub _get_sock {
+    my MogileFS $self = shift;
+    return undef unless $self;
+
+    my $size = scalar(@{$self->{hosts}});
+    my $tries = $size > 15 ? 15 : $size;
+    my $idx = int(rand() * $size);
+
+    my $now = time();
+    my $sock;
+    foreach (1..$tries) {
+        my $host = $self->{hosts}->[$idx++ % $size];
+
+        # try dead hosts every 30 seconds
+        next if $self->{host_dead}->{$host} > $now-30;
+
+        last if $sock = _sock_to_host($host);
+
+        # mark sock as dead
+        debug("marking host dead: $host @ $now");
+        $self->{host_dead}->{$host} = $now;
+    }
+
+    return $sock;
 }
 
 sub _do_request {
@@ -133,8 +160,9 @@ sub _do_request {
     die "MogileFS: invalid arguments to _do_request"
         unless $cmd && $args;
 
-    # FIXME: cache socket in $self, support multiple hosts
-    my $sock = _sock_to_host($self->{hosts}->[0]);
+    # FIXME: cache socket in $self?
+    my $sock = $self->_get_sock
+        or return undef;
     debug("SOCK: $sock");
 
     my $argstr = _encode_url_string(%$args);
