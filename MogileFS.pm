@@ -543,6 +543,18 @@ sub set_pref_ip {
                ref $self->{pref_ip} eq 'HASH';
 }
 
+sub _wait_for_readability {
+    my ($fileno, $timeout) = @_;
+    return 0 unless $fileno && $timeout;
+
+    my $rin;
+    vec($rin, $fileno, 1) = 1;
+    my $nfound = select($rin, undef, undef, $timeout);
+
+    return 0 unless defined $nfound;
+    return $nfound ? 1 : 0;
+}
+
 sub do_request {
     my MogileFS::Backend $self = shift;
     my ($cmd, $args) = @_;
@@ -581,6 +593,10 @@ sub do_request {
         }
         $self->{sock_cache} = $sock;
     }
+
+    # wait up to 3 seconds for the socket to come to life
+    return _fail("socket never became readable")
+        unless _wait_for_readability(fileno($sock), 3);
 
     my $line = <$sock>;
     _debug("RESPONSE: $line");
