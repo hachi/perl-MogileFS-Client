@@ -28,23 +28,14 @@ sub new {
     my MogileFS $self = shift;
     $self = fields::new($self) unless ref $self;
 
-    my %args = @_;
+    return $self->_init(@_);
+}
 
-    # FIXME: add actual validation
-    {
-        $self->{root} = $args{root} or
-            _fail("constructor requires parameter 'root'");
+sub reload {
+    my MogileFS $self = shift;
+    return undef unless $self;
 
-        $self->{domain} = $args{domain} or
-            _fail("constructor requires parameter 'domain'");
-
-        $self->{backend} = new MogileFS::Backend ( hosts => $args{hosts} ) or
-            _fail("cannot instantiate MogileFS::Backend");
-    }
-
-    _debug("MogileFS object: ", $self);
-
-    return $self;
+    return $self->_init(@_);
 }
 
 # returns MogileFS::NewFile object, or undef if no device
@@ -118,6 +109,34 @@ sub _debug {
     return 1;
 }
 
+sub _init {
+    my MogileFS $self = shift;
+
+    my %args = @_;
+
+    # FIXME: add actual validation
+    {
+        $self->{root} = $args{root} or
+            _fail("constructor requires parameter 'root'");
+
+        $self->{domain} = $args{domain} or
+            _fail("constructor requires parameter 'domain'");
+        
+        # create a new backend object if there's not one already,
+        # otherwise call a reload on the existing one
+        if ($self->{backend}) {
+            $self->{backend}->reload( hosts => $args{hosts} );
+        } else {
+            $self->{backend} = MogileFS::Backend->new( hosts => $args{hosts} );
+        }
+        _fail("cannot instantiate MogileFS::Backend") unless $self->{backend};
+    }
+
+    _debug("MogileFS object: [$self]", $self);
+
+    return $self;
+}
+
 
 ################################################################################
 # MogileFS::Admin class
@@ -136,8 +155,6 @@ sub new {
 
     $self->{backend} = new MogileFS::Backend ( hosts => $args{hosts} )
         or _fail("couldn't instantiate MogileFS::Backend");
-
-    _debug("MogileFS object: ", $self);
 
     return $self;
 }
@@ -203,25 +220,14 @@ sub new {
     my MogileFS::Backend $self = shift;
     $self = fields::new($self) unless ref $self;
 
-    my %args = @_;
+    return $self->_init(@_);
+}
 
-    # FIXME: add actual validation
-    {
-        $self->{hosts} = $args{hosts} or
-            _fail("constructor requires parameter 'hosts'");
+sub reload {
+    my MogileFS::Backend $self = shift;
+    return undef unless $self;
 
-        _fail("'hosts' argument must be an arrayref")
-            unless ref $self->{hosts} eq 'ARRAY';
-
-        _fail("'hosts' argument must be of form: 'host:port'")
-            if grep(! /:\d+$/, @{$self->{hosts}});
-    }
-
-    $self->{host_dead} = {};
-
-    _debug("MogileFS object: ", $self);
-
-    return $self;
+    return $self->_init(@_);
 }
 
 sub do_request {
@@ -286,6 +292,28 @@ sub _sock_to_host { # (host)
                                  Blocking => 1,
                                  Timeout  => 1, # 1 sec?
                                  );
+}
+
+sub _init {
+    my MogileFS::Backend $self = shift;
+
+    my %args = @_;
+
+    # FIXME: add actual validation
+    {
+        $self->{hosts} = $args{hosts} or
+            _fail("constructor requires parameter 'hosts'");
+
+        _fail("'hosts' argument must be an arrayref")
+            unless ref $self->{hosts} eq 'ARRAY';
+
+        _fail("'hosts' argument must be of form: 'host:port'")
+            if grep(! /:\d+$/, @{$self->{hosts}});
+    }
+
+    $self->{host_dead} = {};
+
+    return $self;
 }
 
 sub _get_sock {
@@ -376,7 +404,7 @@ sub new {
     # modules later on (in our case, Image::Size) may want to seek around
     # in the file and do some reads.
     my $fh = new IO::File "+>$file"
-        or _fail("couldn't open: $file");
+        or _fail("couldn't open: $file: $!");
 
     my $attr = _get_attrs($fh);
 
