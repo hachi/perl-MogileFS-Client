@@ -91,16 +91,30 @@ sub new_file {
     }
 }
 
+# old style calling:
+#   get_paths(key, noverify)
+# new style calling:
+#   get_paths(key, { noverify => 0/1, zone => "zone" });
+# but with both, second parameter is optional
 sub get_paths {
     my MogileFS $self = shift;
-    my $key = shift;
-    my $noverify = shift;
+    my ($key, $opts) = @_;
+
+    # handle parameters, if any
+    my ($noverify, $zone);
+    if (ref $opts) {
+        $noverify = 1 if $opts->{noverify};
+        $zone = $opts->{zone} || undef;
+    } else {
+        $noverify = 1 if $opts;
+    }
 
     my $res = $self->{backend}->do_request
         ("get_paths", {
             domain => $self->{domain},
             key    => $key,
             noverify => $noverify ? 1 : 0,
+            zone   => $zone,
         }) or return undef;
 
     my @paths = map { $res->{"path$_"} } (1..$res->{paths});
