@@ -148,6 +148,17 @@ sub delete {
     return 1;
 }
 
+# just makes some sleeping happen.  first and only argument is number of
+# seconds to instruct backend thread to sleep for.
+sub sleep {
+    my MogileFS $self = shift;
+    my $duration = shift;
+
+    $self->{backend}->do_request("sleep", { duration => $duration + 0 });
+    
+    return 1;
+}
+
 # this method renames a file.  it returns an undef on error (only a fatal error
 # is considered as undef; "file didn't exist" isn't an error).
 sub rename {
