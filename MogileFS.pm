@@ -154,7 +154,8 @@ sub sleep {
     my MogileFS $self = shift;
     my $duration = shift;
 
-    $self->{backend}->do_request("sleep", { duration => $duration + 0 });
+    $self->{backend}->do_request("sleep", { duration => $duration + 0 })
+        or return undef;
     
     return 1;
 }
