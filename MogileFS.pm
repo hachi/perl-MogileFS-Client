@@ -414,6 +414,7 @@ sub _decode_url_string {
 
 package MogileFS::NewFile;
 
+use strict;
 use IO::File;
 use base 'IO::File';
 use Carp;
@@ -515,20 +516,27 @@ sub _getset {
 
 package MogileFS::NewHTTPFile;
 
+use strict;
+use Carp;
+
 use fields ('host',
-            'sock', # IO::Socket; created only when we need it
+            'sock',           # IO::Socket; created only when we need it
             'uri',
-            'data', # buffered data we have
-            'pos', # simulated file position
-            'length', # length of data field
+            'data',           # buffered data we have
+            'pos',            # simulated file position
+            'length',         # length of data field
             'content_length', # declared length of data we will be receiving (not required)
             'mg',
             'fid',
             'devid',
             'class',
             'key',
-            'path', # full URL to save data to
+            'path',           # full URL to save data to
             );
+
+sub path  { _getset(shift, 'path');      }
+sub class { _getset(shift, 'class', @_); }
+sub key   { _getset(shift, 'key', @_);   }
 
 sub TIEHANDLE {
     my MogileFS::NewHTTPFile $self = shift;
@@ -560,7 +568,7 @@ sub PRINT {
     # now make socket if we don't have one
     if (!$self->{sock} && $self->{content_length}) {
         $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
-            or die "Error: unable to open socket: $!\n";
+            or _fail("unable to open socket: $!");
         $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{content_length}\r\n\r\n");
     }
 
@@ -587,32 +595,13 @@ sub PRINT {
 }
 *print = *PRINT;
 
-# get/set functions
-sub _getset {
-    my MogileFS::NewHTTPFile $self = shift;
-    my $what = shift;
-    
-    if (@_) {
-        # note: we're a TIEHANDLE interface, so we're not QUITE like a
-        # normal class... our parameters tend to come in via an arrayref
-        my $val = shift;
-        $val = shift(@$val) if ref $val eq 'ARRAY';
-        return $self->{$what} = $val;
-    } else {
-        return $self->{$what};
-    }
-}
-sub path  { _getset(shift, 'path');      }
-sub class { _getset(shift, 'class', @_); }
-sub key   { _getset(shift, 'key', @_);   }
-
 sub CLOSE {
     my MogileFS::NewHTTPFile $self = shift;
 
     # if we're closed and we have no sock...
     unless ($self->{sock}) {
         $self->{sock} = IO::Socket::INET->new(PeerAddr => $self->{host})
-            or die "Error: unable to open socket: $!\n";
+            or _fail("unable to open socket: $!");
         $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{length}\r\n\r\n");
         $self->{sock}->print($self->{data});
     }
@@ -664,7 +653,7 @@ sub TELL {
 
 sub SEEK {
     # simply set pos...
-    die "ERROR: Seek past end of file\n" if $_[1] > $_[0]->{length};
+    _fail("seek past end of file") if $_[1] > $_[0]->{length};
     $_[0]->{pos} = $_[1];
 }
 *seek = *SEEK;
@@ -692,5 +681,31 @@ sub READ {
     return $max;
 }
 *read = *READ;
+
+
+################################################################################
+# MogileFS::NewHTTPFile class methods
+#
+
+sub _fail {
+    croak "MogileFS::NewHTTPFile: $_[0]";
+}
+
+*_debug = *MogileFS::debug;
+
+sub _getset {
+    my MogileFS::NewHTTPFile $self = shift;
+    my $what = shift;
+    
+    if (@_) {
+        # note: we're a TIEHANDLE interface, so we're not QUITE like a
+        # normal class... our parameters tend to come in via an arrayref
+        my $val = shift;
+        $val = shift(@$val) if ref $val eq 'ARRAY';
+        return $self->{$what} = $val;
+    } else {
+        return $self->{$what};
+    }
+}
 
 1;
