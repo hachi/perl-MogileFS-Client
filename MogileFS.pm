@@ -85,11 +85,13 @@ sub new_file {
 sub get_paths {
     my MogileFS $self = shift;
     my $key = shift;
+    my $noverify = shift;
 
     my $res = $self->{backend}->do_request
         ("get_paths", {
             domain => $self->{domain},
             key    => $key,
+            noverify => $noverify ? 1 : 0,
         }) or return undef;
 
     my @paths = map { $res->{"path$_"} } (1..$res->{paths});
