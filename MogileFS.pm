@@ -266,6 +266,20 @@ sub get_stats {
         $ret->{replication}->{$res->{"replication${i}domain"}}->{$res->{"replication${i}class"}}->{$res->{"replication${i}devcount"}} = $res->{"replication${i}files"};
     }
 
+    # get file statistics
+    foreach my $i (1..$res->{"filescount"}) {
+        $ret->{files}->{$res->{"files${i}domain"}}->{$res->{"files${i}class"}} = $res->{"files${i}files"};
+    }
+
+    # get device statistics
+    foreach my $i (1..$res->{"devicescount"}) {
+        $ret->{devices}->{$res->{"devices${i}id"}} = {
+            host => $res->{"devices${i}host"},
+            status => $res->{"devices${i}status"},
+            files => $res->{"devices${i}files"},
+        };
+    }
+
     # return the created response
     return $ret;
 }
