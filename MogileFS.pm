@@ -694,9 +694,4 @@ sub READ {
 }
 *read = *READ;
 
-sub AUTOLOAD {
-    use vars qw($AUTOLOAD);
-    warn "Error: $AUTOLOAD not implemented.\n";
-}
-
 1;
