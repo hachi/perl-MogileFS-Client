@@ -758,7 +758,19 @@ sub CLOSE {
         if ($line =~ m!^HTTP/\d+\.\d+\s+(\d+)!) {
             # all 2xx responses are success
             unless ($1 >= 200 && $1 <= 299) {
-                $@ = "HTTP response $1 from upload\n";
+                # read through to the body
+                my ($found_header, $body);
+                while (defined (my $l = $self->{sock}->getline)) {
+                    # remove trailing stuff
+                    $l =~ s/[\r\n\s]+$//g;
+                    $found_header = 1 unless $l;
+                    next unless $found_header;
+
+                    # add line to the body, with a space for readability
+                    $body .= " $l";
+                }
+                $body = substr($body, 0, 512) if length $body > 512;
+                $@ = "HTTP response $1 from upload: $body\n";
                 return undef;
             }
         } else {
