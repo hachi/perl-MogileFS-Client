@@ -272,7 +272,8 @@ sub new {
 sub path {
     my MogileFS::NewFile $self = shift;
 
-    return $self->{mogilefs_newfile_path};
+    my $attrs = $self->_get_attrs;
+    return $attrs->{mogilefs_newfile_path};
 }
 
 sub close {
