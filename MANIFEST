@@ -2,3 +2,4 @@ Makefile.PL
 MANIFEST
 MogileFS.pm
 META.yml                                 Module meta-data (added by MakeMaker)
+t/00use.t

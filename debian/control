@@ -1,0 +1,13 @@
+Source: libmogilefs-perl
+Section: perl
+Priority: optional
+Maintainer: Jay Bonci <jaybonci@debian.org>
+Build-Depends-Indep: debhelper (>= 4.1.40), perl (>= 5.6.0-16), libio-stringy-perl, libwww-perl
+Standards-Version: 3.6.1.0
+
+Package: libmogilefs-perl
+Architecture: all
+Depends: ${perl:Depends}, libio-stringy-perl, libwww-perl
+Description: perl client for MogileFS
+ MogileFS.pm provides a the perl client for the MogileFS application-level 
+ distributed filesystem.
