@@ -333,6 +333,22 @@ sub update_class {
     return $self->_mod_class(@_, 'update');
 }
 
+# change the state of a device; pass in the hostname of the host the
+# device is located on, the device id number, and the state you want
+# the host to be set to.  returns 1 on success, undef on error.
+sub change_device_state {
+    my MogileFS::Admin $self = shift;
+    my ($host, $device, $state) = @_;
+    
+    my $res = $self->{backend}->do_request("set_state", {
+        host => $host,
+        device => $device,
+        state => $state,
+    }) or return undef;
+    
+    return 1;
+}
+
 
 ################################################################################
 # MogileFS::Admin class methods
