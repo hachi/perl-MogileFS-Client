@@ -156,7 +156,7 @@ sub sleep {
 
     $self->{backend}->do_request("sleep", { duration => $duration + 0 })
         or return undef;
-    
+
     return 1;
 }
 
@@ -195,7 +195,7 @@ sub _debug {
     my $ref = shift;
     chomp $msg;
 
-    use Data::Dumper;
+    eval "use Data::Dumper;";
     print STDERR "$msg\n" . Dumper($ref) . "\n";
     return 1;
 }
@@ -261,7 +261,7 @@ sub get_hosts {
 
     my @ret = ();
     foreach my $ct (1..$res->{hosts}) {
-        push @ret, { map { $_ => $res->{"host${ct}_$_"} } 
+        push @ret, { map { $_ => $res->{"host${ct}_$_"} }
                      qw(hostid status hostname hostip http_port remoteroot) };
     }
 
@@ -424,7 +424,18 @@ package MogileFS::Backend;
 use strict;
 use Carp;
 use IO::Socket::INET;
-use fields qw(hosts host_dead lasterr lasterrstr);
+use Socket qw( MSG_NOSIGNAL PF_INET IPPROTO_TCP SOCK_STREAM );
+use Errno qw( EINPROGRESS EWOULDBLOCK EISCONN );
+    
+use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
+	    'host_dead',    # "$host:$port" -> $time  (of last connect failure)
+	    'lasterr',      # string: \w+ identifer of last error
+	    'lasterrstr',   # string: english of last error
+	    'sock_cache',   # cached socket to mogilefsd tracker
+	    );
+
+use vars qw($FLAG_NOSIGNAL);
+eval { $FLAG_NOSIGNAL = MSG_NOSIGNAL; };
 
 sub new {
     my MogileFS::Backend $self = shift;
@@ -447,15 +458,37 @@ sub do_request {
     _fail("invalid arguments to do_request")
         unless $cmd && $args;
 
-    # FIXME: cache socket in $self?
-    my $sock = $self->_get_sock
-        or return _fail("couldn't connect to mogilefsd backend");
-    _debug("SOCK: $sock");
+    local $SIG{'PIPE'} = "IGNORE" unless $FLAG_NOSIGNAL;
 
+    my $sock = $self->{sock_cache};
     my $argstr = _encode_url_string(%$args);
+    my $req = "$cmd $argstr\r\n";
+    my $reqlen = length($req);
+    my $rv = 0;
 
-    $sock->print("$cmd $argstr\r\n");
-    _debug("REQUEST: $cmd $argstr");
+    if ($sock) {
+        # try our cached one, but assume it might be bogus
+        _debug("SOCK: cached = $sock, REQ: $req");
+        $rv = send($sock, $req, $FLAG_NOSIGNAL);
+        if ($!) {
+            undef $self->{sock_cache};
+        } elsif ($rv != $reqlen) {
+            return _fail("send() didn't return expected length ($rv, not $reqlen)");
+        }
+    }
+
+    unless ($rv) {
+        $sock = $self->_get_sock
+            or return _fail("couldn't connect to mogilefsd backend");
+        _debug("SOCK: $sock, REQ: $req");
+        $rv = send($sock, $req, $FLAG_NOSIGNAL);
+        if ($!) {
+            return _fail("error talking to mogilefsd tracker: $!");
+        } elsif ($rv != $reqlen) {
+            return _fail("send() didn't return expected length ($rv, not $reqlen)");
+        }
+        $self->{sock_cache} = $sock;
+    }
 
     my $line = <$sock>;
     _debug("RESPONSE: $line");
@@ -475,7 +508,7 @@ sub do_request {
         return $args;
     }
 
-    _fail("invalid response from server");
+    _fail("invalid response from server: [$line]");
     return undef;
 }
 
@@ -529,6 +562,8 @@ sub _init {
     return $self;
 }
 
+# return a new mogilefsd socket, trying different hosts until one is found,
+# or undef if they're all dead
 sub _get_sock {
     my MogileFS::Backend $self = shift;
     return undef unless $self;
@@ -542,8 +577,8 @@ sub _get_sock {
     foreach (1..$tries) {
         my $host = $self->{hosts}->[$idx++ % $size];
 
-        # try dead hosts every 30 seconds
-        next if $self->{host_dead}->{$host} > $now-30;
+        # try dead hosts every 5 seconds
+        next if $self->{host_dead}->{$host} > $now - 5;
 
         last if $sock = _sock_to_host($host);
 
