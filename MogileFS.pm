@@ -912,7 +912,14 @@ sub _getset {
 package MogileFS::NewHTTPFile;
 
 use strict;
+no strict 'refs';
+
 use Carp;
+use POSIX qw( EAGAIN );
+use Socket qw( PF_INET SOCK_STREAM );
+use Errno qw( EINPROGRESS EISCONN );
+
+use vars qw($PROTO_TCP);
 
 use fields ('host',
             'sock',           # IO::Socket; created only when we need it
@@ -928,6 +935,8 @@ use fields ('host',
             'key',
             'path',           # full URL to save data to
             'backup_dests',
+            'bytes_out',      # count of how many bytes we've written to the socket
+            'data_in',        # storage for data we've read from the socket
             );
 
 sub path  { _getset(shift, 'path');      }
@@ -957,10 +966,49 @@ sub TIEHANDLE {
     $self->{content_length} = $args{content_length} + 0;
     $self->{pos} = 0;
     $self->{$_} = $args{$_} foreach qw(mg fid devid class key);
+    $self->{bytes_out} = 0;
+    $self->{data_in} = '';
 
     return $self;
 }
 *new = *TIEHANDLE;
+
+sub _sock_to_host { # (host)
+    my MogileFS::NewHTTPFile $self = shift;
+    my $host = shift;
+
+    # setup
+    my ($ip, $port) = $host =~ /^(.*):(\d+)$/;
+    my $sock = "Sock_$host";
+    my $proto = $PROTO_TCP ||= getprotobyname('tcp');
+    my $sin;
+
+    # create the socket
+    socket($sock, PF_INET, SOCK_STREAM, $proto);
+    $sin = Socket::sockaddr_in($port, Socket::inet_aton($ip));
+
+    # unblock the socket
+    IO::Handle::blocking($sock, 0);
+
+    # attempt a connection
+    my $ret = connect($sock, $sin);
+    if (!$ret && $! == EINPROGRESS) {
+        my $win = '';
+        vec($win, fileno($sock), 1) = 1;
+
+        # watch for writeability
+        if (select(undef, $win, undef, 3) > 0) {
+            $ret = connect($sock, $sin);
+
+            # EISCONN means connected & won't re-connect, so success
+            $ret = 1 if !$ret && $! == EISCONN;
+        }
+    }
+
+    # just throw back the socket we have
+    return $sock if $ret;
+    return undef;
+}
 
 sub _connect_sock {
     my MogileFS::NewHTTPFile $self = shift;
@@ -969,9 +1017,9 @@ sub _connect_sock {
     my @down_hosts;
 
     while (!$self->{sock} && $self->{host}) {
-        return 1 if $self->{sock} =
-            IO::Socket::INET->new(PeerAddr => $self->{host},
-                                  TimeOut => 3);
+        # attempt to connect
+        return 1 if
+            $self->{sock} = $self->_sock_to_host($self->{host});
 
         push @down_hosts, $self->{host};
         if (my $dest = shift @{$self->{backup_dests}}) {
@@ -986,6 +1034,100 @@ sub _connect_sock {
     _fail("unable to open socket to storage node (tried: @down_hosts): $!");
 }
 
+# abstracted read; implements what ends up being a blocking read but
+# does it in terms of non-blocking operations.
+sub _getline {
+    my MogileFS::NewHTTPFile $self = shift;
+    return undef unless $self->{sock};
+
+    # short cut if we already have data read
+    if ($self->{data_in} =~ s/^(.*?\r?\n)//) {
+        return $1;
+    }
+
+    my $rin = '';
+    vec($rin, fileno($self->{sock}), 1) = 1;
+
+    # nope, we have to read a line
+    my $nfound;
+    while ($nfound = select($rin, undef, undef, 3)) {
+        my $data;
+        my $bytesin = sysread($self->{sock}, $data, 1024);
+        if (defined $bytesin) {
+            $self->{data_in} .= $data;
+        } else {
+            next if $! == EAGAIN;
+            _fail("error reading from node for device $self->{devid}: $!");
+        }
+
+        # return a line if we got one
+        if ($self->{data_in} =~ s/^(.*?\r?\n)//) {
+            return $1;
+        }
+    }
+
+    # if we got here, nothing was readable in our time limit
+    return undef;
+}
+
+# abstracted write function that uses non-blocking I/O and checking for
+# writability to ensure that we don't get stuck doing a write if the
+# node we're talking to goes down.  also handles logic to fall back to
+# a backup node if we're on our first write and the first node is down.
+# this entire function is a blocking function, it just uses intelligent
+# non-blocking write functionality.
+#
+# this function returns success (1) or it croaks on failure.
+sub _write {
+    my MogileFS::NewHTTPFile $self = shift;
+    return undef unless $self->{sock};
+
+    my $win = '';
+    vec($win, fileno($self->{sock}), 1) = 1;
+
+    # setup data and counters
+    my $data = shift();
+    my $bytesleft = length($data);
+    my $bytessent = 0;
+
+    # main sending loop for data, will keep looping until all of the data
+    # we've been asked to send is sent
+    my $nfound;
+    while ($bytesleft && ($nfound = select(undef, $win, undef, 3))) {
+        my $bytesout = syswrite($self->{sock}, $data, $bytesleft, $bytessent);
+        if (defined $bytesout) {
+            # update our myriad counters
+            $bytessent += $bytesout;
+            $self->{bytes_out} += $bytesout;
+            $bytesleft -= $bytesout;
+        } else {
+            # if we get EAGAIN, restart the select loop, else fail
+            next if $! == EAGAIN;
+            _fail("error writing to node for device $self->{devid}: $!");
+        }
+    }
+    return 1 unless $bytesleft;
+
+    # at this point, we had a socket error, since we have bytes left, and
+    # the loop above didn't finish sending them.  if this was our first
+    # write, let's try to fall back to a different host.
+    unless ($self->{bytes_out}) {
+        if (my $dest = shift @{$self->{backup_dests}}) {
+            # dest is [$devid,$path]
+            $self->_parse_url($dest->[1]) or _fail("bogus URL");
+            $self->{devid} = $dest->[0];
+            $self->_connect_sock;
+
+            # now repass this write to try again
+            return $self->_write($data);
+        }
+    }
+
+    # total failure (croak)
+    $self->{sock} = undef;
+    _fail("unable to write to any allocated storage node");
+}
+
 sub PRINT {
     my MogileFS::NewHTTPFile $self = shift;
 
@@ -997,7 +1139,7 @@ sub PRINT {
     # now make socket if we don't have one
     if (!$self->{sock} && $self->{content_length}) {
         $self->_connect_sock;
-        $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{content_length}\r\n\r\n");
+        $self->_write("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{content_length}\r\n\r\n");
     }
 
     # write some data to our socket
@@ -1015,7 +1157,7 @@ sub PRINT {
         }
 
         # actually write
-        $self->{sock}->print($data);
+        $self->_write($data);
     } else {
         # or not, just stick it on our queued data
         $self->{data} .= $data;
@@ -1030,19 +1172,25 @@ sub CLOSE {
     # if we're closed and we have no sock...
     unless ($self->{sock}) {
         $self->_connect_sock;
-        $self->{sock}->print("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{length}\r\n\r\n");
-        $self->{sock}->print($self->{data});
+        $self->_write("PUT $self->{uri} HTTP/1.0\r\nContent-length: $self->{length}\r\n\r\n");
+        $self->_write($self->{data});
     }
 
     # get response from put
     if ($self->{sock}) {
-        my $line = $self->{sock}->getline;
+        my $line = $self->_getline;
+
+        unless (defined $line) {
+            $@ = "Unable to read response line from server\n";
+            return undef;
+        }
+
         if ($line =~ m!^HTTP/\d+\.\d+\s+(\d+)!) {
             # all 2xx responses are success
             unless ($1 >= 200 && $1 <= 299) {
                 # read through to the body
                 my ($found_header, $body);
-                while (defined (my $l = $self->{sock}->getline)) {
+                while (defined (my $l = $self->_getline)) {
                     # remove trailing stuff
                     $l =~ s/[\r\n\s]+$//g;
                     $found_header = 1 unless $l;
