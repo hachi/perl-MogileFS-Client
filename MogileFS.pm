@@ -513,12 +513,13 @@ use Errno qw( EINPROGRESS EWOULDBLOCK EISCONN );
 use POSIX ();
 
 use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
-	    'host_dead',    # "$host:$port" -> $time  (of last connect failure)
-	    'lasterr',      # string: \w+ identifer of last error
-	    'lasterrstr',   # string: english of last error
-	    'sock_cache',   # cached socket to mogilefsd tracker
-	    'pref_ip',      # hashref; { ip => preferred ip }
-	    );
+            'host_dead',    # "$host:$port" -> $time  (of last connect failure)
+            'lasterr',      # string: \w+ identifer of last error
+            'lasterrstr',   # string: english of last error
+            'sock_cache',   # cached socket to mogilefsd tracker
+            'pref_ip',      # hashref; { ip => preferred ip }
+            'timeout',      # time in seconds to allow sockets to become readable
+            );
 
 use vars qw($FLAG_NOSIGNAL $PROTO_TCP);
 eval { $FLAG_NOSIGNAL = MSG_NOSIGNAL; };
@@ -597,7 +598,7 @@ sub do_request {
     }
 
     # wait up to 3 seconds for the socket to come to life
-    unless (_wait_for_readability(fileno($sock), 3)) {
+    unless (_wait_for_readability(fileno($sock), $self->{timeout})) {
         close($sock);
         return _fail("socket never became readable");
     }
@@ -726,6 +727,10 @@ sub _init {
 
         _fail("'hosts' argument must be of form: 'host:port'")
             if grep(! /:\d+$/, @{$self->{hosts}});
+
+        _fail("'timeout' argument must be a number")
+            if $args{timeout} && $args{timeout} !~ /^\d+$/;
+        $self->{timeout} = $args{timeout} || 3;
     }
 
     $self->{host_dead} = {};
