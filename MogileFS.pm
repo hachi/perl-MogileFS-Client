@@ -121,6 +121,42 @@ sub get_domains {
     return $ret;
 }
 
+# create a new domain
+sub create_domain {
+    my MogileFS $self = shift;
+    my $domain = shift;
+
+    my $res = $self->{backend}->do_request("create_domain", { domain => $domain });
+    return undef unless $res->{domain} eq $domain;
+    
+    return 1;
+}
+
+# create a new class within a domain
+sub create_class {
+    my MogileFS $self = shift;
+    my ($domain, $class, $mindevcount, $verb) = @_;
+    $verb ||= 'create';
+    
+    my $res = $self->{backend}->do_request("${verb}_class", {
+        domain => $domain,
+        class => $class,
+        mindevcount => $mindevcount,
+    });
+    return undef unless $res->{class} eq $class;
+    
+    return 1;
+}
+
+# update a class's mindevcount within a domain
+sub update_class {
+    my MogileFS $self = shift;
+
+    # a simple passthrough to create, but specify that it should be doing
+    # an update
+    return $self->create_class(@_, 'update');
+}
+
 # given a key, returns a scalar reference pointing at a string containing
 # the contents of the file. takes one parameter; a scalar key to get the
 # data for the file.
