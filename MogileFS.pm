@@ -7,6 +7,7 @@
 # Authors:
 #    Brad Whitaker <whitaker@danga.com>
 #    Brad Fitzpatrick <brad@danga.com>
+#    Mark Smith <marksmith@danga.com>
 #
 # License:
 #    GPL or Artistic License
