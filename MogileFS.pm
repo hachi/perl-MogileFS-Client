@@ -924,6 +924,7 @@ sub _parse_url {
     return 0 unless $url =~ m!http://(.+?)(/.+)$!;
     $self->{host} = $1;
     $self->{uri} = $2;
+    $self->{path} = $url;
     return 1;
 }
 
@@ -939,7 +940,7 @@ sub TIEHANDLE {
     $self->{backup_dests} = $args{backup_dests} || [];
     $self->{content_length} = $args{content_length} + 0;
     $self->{pos} = 0;
-    $self->{$_} = $args{$_} foreach qw(mg fid devid class key path);
+    $self->{$_} = $args{$_} foreach qw(mg fid devid class key);
 
     return $self;
 }
@@ -960,7 +961,6 @@ sub _connect_sock {
         if (my $dest = shift @{$self->{backup_dests}}) {
             # dest is [$devid,$path]
             $self->_parse_url($dest->[1]) or _fail("bogus URL");
-            $self->{path} = $dest->[1];
             $self->{devid} = $dest->[0];
         } else {
             $self->{host} = undef;
