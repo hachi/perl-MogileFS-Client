@@ -269,6 +269,12 @@ sub new {
     return bless $fh;
 }
 
+sub path {
+    my MogileFS::NewFile $self = shift;
+
+    return $self->{mogilefs_newfile_path};
+}
+
 sub close {
     my MogileFS::NewFile $self = shift;
 
