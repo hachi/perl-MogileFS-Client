@@ -113,6 +113,7 @@ sub get_file_data {
 
     # iterate over each
     foreach my $path (@paths) {
+        next unless defined $path;
         if ($path =~ m!^http://!) {
             # try via HTTP
             my $ua = new LWP::UserAgent;
@@ -620,7 +621,8 @@ sub _get_sock {
         my $host = $self->{hosts}->[$idx++ % $size];
 
         # try dead hosts every 5 seconds
-        next if $self->{host_dead}->{$host} > $now - 5;
+        next if $self->{host_dead}->{$host} &&
+                $self->{host_dead}->{$host} > $now - 5;
 
         last if $sock = _sock_to_host($host);
 
