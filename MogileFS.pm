@@ -1185,14 +1185,18 @@ sub CLOSE {
         $self->_write($self->{data});
     }
 
+    # set a message in $! and $@
+    my $err = sub {
+        $! = $@ = "$_[0]\n";
+        return undef;
+    };
+
     # get response from put
     if ($self->{sock}) {
         my $line = $self->_getline;
 
-        unless (defined $line) {
-            $@ = "Unable to read response line from server\n";
-            return undef;
-        }
+        return $err->("Unable to read response line from server")
+            unless defined $line;
 
         if ($line =~ m!^HTTP/\d+\.\d+\s+(\d+)!) {
             # all 2xx responses are success
@@ -1209,12 +1213,10 @@ sub CLOSE {
                     $body .= " $l";
                 }
                 $body = substr($body, 0, 512) if length $body > 512;
-                $@ = "HTTP response $1 from upload: $body\n";
-                return undef;
+                return $err->("HTTP response $1 from upload: $body");
             }
         } else {
-            $@ = "Response line not understood: $line\n";
-            return undef;
+            return $err->("Response line not understood: $line");
         }
         $self->{sock}->close;
     }
@@ -1241,8 +1243,7 @@ sub CLOSE {
         # set $@, as our callers expect $@ to contain the error message that
         # failed during a close.  since we failed in the backend, we have to
         # do this manually.
-        $@ = "$mg->{backend}->{lasterr}: $mg->{backend}->{lasterrstr}";
-        return undef;
+        return $err->("$mg->{backend}->{lasterr}: $mg->{backend}->{lasterrstr}");
     }
 
     return 1;
