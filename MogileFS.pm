@@ -42,6 +42,8 @@ sub new {
 
     $self->{host_dead} = {}; # FIXME: keep a real hash of dead hosts
 
+    debug("MogileFS object: ", $self);
+
     return $self;
 }
 
@@ -69,6 +71,19 @@ sub new_file {
                                   );
 }
 
+sub debug {
+    my $msg = shift;
+    my $ref = shift;
+    chomp $msg;
+
+    use Data::Dumper;
+    print STDERR "$msg";
+    print STDERR Dumper($ref) if $ref;
+    print STDERR "\n";
+
+    return;
+}
+
 ######################################################################
 # Server communications
 #
@@ -92,27 +107,27 @@ sub _do_request {
 
     # FIXME: cache socket in $self, support multiple hosts
     my $sock = _sock_to_host($self->{hosts}->[0]);
-    print "SOCK: $sock\n";
+    debug("SOCK: $sock");
 
     my $argstr = _encode_url_string(%$args);
 
     $sock->print("$cmd $argstr\r\n");
-    print "REQUEST: $cmd $argstr\r\n";
+    debug("REQUEST: $cmd $argstr");
 
     my $line = <$sock>;
+    debug("RESPONSE: $line");
 
     if ($line =~ /^ERR\s+(\w+)\s*(\S*)/) {
         $self->{'lasterr'} = $1;
         $self->{'lasterrstr'} = $2 || undef;
+        debug("LASTERR: $1 $2");
         return undef;
     }
 
     # OK <arg_len> <response>
     if ($line =~ /^OK\s+\d*\s*(\S*)/) {
         my $args = _decode_url_string($1);
-        print "RESPONSE: $line";
-        use Data::Dumper;
-        print Dumper($args);
+        debug("RETURN_VARS: ", $args);
         return $args;
     }
 
@@ -176,38 +191,37 @@ sub new {
     my %args = @_;
 
     my $mg = $args{mg};
-    # FIXME: error check %args
+    # FIXME: validate %args
 
     my $file = "$mg->{root}/$args{path}";
 
     my $fh = new IO::File ">$file"
         or die "couldn't open: $file";
 
-    # get a reference to the hash part of the $fh typeglob ref
-    my $hself = \%{*$fh};
+    my $attr = _get_attrs($fh);
 
     # prefix our keys with "mogilefs_newfile_" as per IO::Handle recommendations
-    # and copy safe %args values into $hself
-    $hself->{"mogilefs_newfile_$_"} = $args{$_} foreach qw(mg fid devid key path);
+    # and copy safe %args values into $attr
+    $attr->{"mogilefs_newfile_$_"} = $args{$_} foreach qw(mg fid devid key path);
 
     return bless $fh;
 }
 
 sub delete {
     my MogileFS::NewFile $self = shift;
-    my %args = @_;
 
-    my $mg  = $self->{mogilefs_newfile_mg};
-    my $key = $self->{mogilefs_newfile_mg};
+    my $attr = $self->_get_attrs;
+
+    my $mg  = $attr->{mogilefs_newfile_mg};
+    my $key = $attr->{mogilefs_newfile_key};
     my $domain = $mg->{domain};
     
-    _do_request("delete", {
+    $mg->_do_request("delete", {
         domain => $domain,
         key    => $key,
     }) or return undef;
 
     return 1;
-
 }
 
 sub get_paths {
@@ -218,7 +232,7 @@ sub get_paths {
     my $key = $self->{key};
     my $domain = $mg->{domain};
 
-    my $res = _do_request("get_paths", {
+    my $res = $mg->_do_request("get_paths", {
         domain => $domain,
         key    => $key,
     }) or return undef;
@@ -226,9 +240,6 @@ sub get_paths {
     return map { $res->{"path$_"} } (1..$res->{paths});
 }
 
-# application closes their $fh to notify the framework that the given key
-# is on disk and can now be replicated around.  (moves devcount from 0 to 1)
-# returns true if close was successful, false otherwise.
 sub close {
     my MogileFS::NewFile $self = shift;
 
@@ -236,16 +247,16 @@ sub close {
     $self->SUPER::close;
 
     # get a reference to the hash part of the $fh typeglob ref
-    my $hself = \%{*$self};
+    my $attr = $self->_get_attrs;
 
-    my $mg    = $hself->{mogilefs_newfile_mg};
-    my $fid   = $hself->{mogilefs_newfile_fid};
-    my $devid = $hself->{mogilefs_newfile_devid};
-    my $path  = $hself->{mogilefs_newfile_path};
-    my $key   = $hself->{mogilefs_newfile_key};
+    my $mg    = $attr->{mogilefs_newfile_mg};
+    my $fid   = $attr->{mogilefs_newfile_fid};
+    my $devid = $attr->{mogilefs_newfile_devid};
+    my $path  = $attr->{mogilefs_newfile_path};
+    my $key   = $attr->{mogilefs_newfile_key};
     my $domain = $mg->{domain};
 
-    my MogileFS $mg = $hself->{mogilefs_newfile_mg};
+    my MogileFS $mg = $attr->{mogilefs_newfile_mg};
     $mg->_do_request("create_close", {
         fid    => $fid,
         devid  => $devid,
@@ -257,6 +268,10 @@ sub close {
     return 1;
 }
 
+# get a reference to the hash part of the $fh typeglob ref
+sub _get_attrs {
+    return \%{*{$_[0]}};
+}
 
 
 1;
