@@ -23,6 +23,7 @@ package MogileFS;
 use strict;
 use Carp;
 use IO::WrapTie;
+use LWP::Simple;
 use fields qw(root domain backend);
 
 sub new {
@@ -97,6 +98,33 @@ sub get_paths {
     my @paths = map { $res->{"path$_"} } (1..$res->{paths});
     return @paths if scalar(@paths) > 0 && $paths[0] =~ m!^http://!;
     return map { "$self->{root}/$_"} @paths;
+}
+
+# given a key, returns a scalar reference pointing at a string containing
+# the contents of the file. takes one parameter; a scalar key to get the
+# data for the file.
+sub get_file_data {
+    # given a key, load some paths and get data
+    my MogileFS $self = shift;
+    my @paths = $self->get_paths(shift);
+
+    # iterate over each
+    foreach my $path (@paths) {
+        if ($path =~ m!^http://!) {
+            # try via HTTP
+            my $contents = LWP::Simple::get($path);
+            return \$contents if $contents;
+
+        } else {
+            # open the file from disk and just grab it all
+            open FILE, "<$path" or next;
+            my $contents;
+            { local $/ = undef; $contents = <FILE>; }
+            close FILE;
+            return \$contents if $contents;
+        }
+    }
+    return undef;
 }
 
 # TODO: delete method on MogileFS::NewFile object
