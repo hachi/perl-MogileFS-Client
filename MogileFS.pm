@@ -577,7 +577,8 @@ sub do_request {
         # try our cached one, but assume it might be bogus
         _debug("SOCK: cached = $sock, REQ: $req");
         $rv = send($sock, $req, $FLAG_NOSIGNAL);
-        if ($!) {
+        if ($! || ! defined $rv) {
+            # undef is error, but $! may not be populated, we've found
             undef $self->{sock_cache};
         } elsif ($rv != $reqlen) {
             return _fail("send() didn't return expected length ($rv, not $reqlen)");
