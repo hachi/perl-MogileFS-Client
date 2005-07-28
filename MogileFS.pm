@@ -108,6 +108,40 @@ sub new_file {
     }
 }
 
+# Wrapper around new_file, print, and close.
+# Given a key, class, and a filehandle or filename, stores the
+# file contents in MogileFS. Returns true on success, false on failure.
+sub store_file {
+    my MogileFS $self = shift;
+    my($key, $class, $file) = @_;
+    my $fh = $self->new_file($key, $class) or return;
+    my $fh_from;
+    if (ref($file)) {
+        $fh_from = $file;
+    } else {
+        open $fh_from, $file or return;
+    }
+    while (read $fh_from, my($chunk), 8192) {
+        $fh->print($chunk);
+    }
+    close $fh_from unless ref $file;
+    $fh->close or return;
+    1;
+}
+
+# Wrapper around new_file, print, and close.
+# Given a key, class, and file contents (scalar or scalarref), stores the
+# file contents in MogileFS. Returns true on success, false on failure.
+sub store_content {
+    my MogileFS $self = shift;
+    my($key, $class, $content) = @_;
+    my $fh = $self->new_file($key, $class) or return;
+    $content = ref($content) eq 'SCALAR' ? $$content : $content;
+    $fh->print($content);
+    $fh->close or return;
+    1;
+}
+
 # old style calling:
 #   get_paths(key, noverify)
 # new style calling:
