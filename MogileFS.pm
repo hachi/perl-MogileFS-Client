@@ -110,7 +110,8 @@ sub new_file {
 
 # Wrapper around new_file, print, and close.
 # Given a key, class, and a filehandle or filename, stores the
-# file contents in MogileFS. Returns true on success, false on failure.
+# file contents in MogileFS. Returns the number of bytes stored on
+# success, undef on failure.
 sub store_file {
     my MogileFS $self = shift;
     my($key, $class, $file) = @_;
@@ -121,17 +122,20 @@ sub store_file {
     } else {
         open $fh_from, $file or return;
     }
-    while (read $fh_from, my($chunk), 8192) {
+    my $bytes;
+    while (my $len = read $fh_from, my($chunk), 8192) {
         $fh->print($chunk);
+        $bytes += $len;
     }
     close $fh_from unless ref $file;
     $fh->close or return;
-    1;
+    $bytes;
 }
 
 # Wrapper around new_file, print, and close.
 # Given a key, class, and file contents (scalar or scalarref), stores the
-# file contents in MogileFS. Returns true on success, false on failure.
+# file contents in MogileFS. Returns the number of bytes stored on
+# success, undef on failure.
 sub store_content {
     my MogileFS $self = shift;
     my($key, $class, $content) = @_;
@@ -139,7 +143,7 @@ sub store_content {
     $content = ref($content) eq 'SCALAR' ? $$content : $content;
     $fh->print($content);
     $fh->close or return;
-    1;
+    length($content);
 }
 
 # old style calling:
