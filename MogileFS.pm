@@ -588,7 +588,7 @@ sub _wait_for_readability {
     my ($fileno, $timeout) = @_;
     return 0 unless $fileno && $timeout;
 
-    my $rin;
+    my $rin = '';
     vec($rin, $fileno, 1) = 1;
     my $nfound = select($rin, undef, undef, $timeout);
 
