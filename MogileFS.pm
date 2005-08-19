@@ -517,6 +517,17 @@ sub update_host {
     return $self->_mod_host($host, $args, 'update');
 }
 
+# delete a host
+sub delete_host {
+    my MogileFS::Admin $self = shift;
+    my $host = shift;
+    return undef unless $host;
+
+    $self->{backend}->do_request("delete_host", { host => $host })
+        or return undef;
+    return 1;
+}
+
 # change the state of a device; pass in the hostname of the host the
 # device is located on, the device id number, and the state you want
 # the host to be set to.  returns 1 on success, undef on error.
