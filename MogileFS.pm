@@ -382,7 +382,7 @@ sub get_hosts {
     my @ret = ();
     foreach my $ct (1..$res->{hosts}) {
         push @ret, { map { $_ => $res->{"host${ct}_$_"} }
-                     qw(hostid status hostname hostip http_port remoteroot) };
+                     qw(hostid status hostname hostip http_port http_get_port remoteroot altip altmask) };
     }
 
     return \@ret;
@@ -492,6 +492,31 @@ sub update_class {
     return $self->_mod_class(@_, 'update');
 }
 
+# create a host
+sub create_host {
+    my MogileFS::Admin $self = shift;
+    my $host = shift;
+    return undef unless $host;
+
+    my $args = shift;
+    return undef unless ref $args eq 'HASH';
+    return undef unless $args->{ip} && $args->{port};
+
+    return $self->_mod_host($host, $args, 'create');
+}
+
+# edit a host
+sub update_host {
+    my MogileFS::Admin $self = shift;
+    my $host = shift;
+    return undef unless $host;
+
+    my $args = shift;
+    return undef unless ref $args eq 'HASH';
+
+    return $self->_mod_host($host, $args, 'update');
+}
+
 # change the state of a device; pass in the hostname of the host the
 # device is located on, the device id number, and the state you want
 # the host to be set to.  returns 1 on success, undef on error.
@@ -535,6 +560,38 @@ sub _mod_class {
     return 1;
 }
 
+# modify a host
+sub _mod_host {
+    my MogileFS::Admin $self = shift;
+    my ($host, $args, $verb) = @_;
+
+    $args ||= {};
+    $args->{host} = $host;
+    $verb ||= 'create';
+    
+    my $res = $self->{backend}->do_request("${verb}_host", $args);
+    return undef unless $res->{host} eq $host;
+    
+    return 1;
+}
+
+sub errstr {
+    my MogileFS::Admin $self = shift;
+    return undef unless $self->{backend};
+    return $self->{backend}->errstr;
+}
+
+sub errcode {
+    my MogileFS::Admin $self = shift;
+    return undef unless $self->{backend};
+    return $self->{backend}->errcode;
+}
+
+sub err {
+    my MogileFS::Admin $self = shift;
+    return undef unless $self->{backend};
+    return $self->{backend}->err;
+}
 
 ######################################################################
 # MogileFS::Backend class
@@ -672,6 +729,15 @@ sub errstr {
     return join(" ", $self->{'lasterr'}, $self->{'lasterrstr'});
 }
 
+sub errcode {
+    my MogileFS::Backend $self = shift;
+    return $self->{lasterr};
+}
+
+sub err {
+    my MogileFS::Backend $self = shift;
+    return $self->{lasterr} ? 1 : 0;
+}
 
 ################################################################################
 # MogileFS::Backend class methods
