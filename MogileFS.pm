@@ -451,7 +451,7 @@ sub get_domains {
     my $res = $self->{backend}->do_request("get_domains", {})
         or return undef;
 
-    my $ret;
+    my $ret = {};
     foreach my $i (1..$res->{domains}) {
         $ret->{$res->{"domain$i"}} = {
             map {
@@ -502,6 +502,20 @@ sub update_class {
     # wrapper around _mod_class(update)
     return $self->_mod_class(@_, 'update');
 }
+
+# delete a class
+sub delete_class {
+    my MogileFS::Admin $self = shift;
+    my ($domain, $class) = @_;
+
+    $self->{backend}->do_request("delete_class", {
+            domain => $domain,
+            class => $class,
+        }) or return undef;
+    
+    return 1;
+}
+
 
 # create a host
 sub create_host {
