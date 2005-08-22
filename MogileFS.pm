@@ -475,6 +475,17 @@ sub create_domain {
     return 1;
 }
 
+# delete a domain
+sub delete_domain {
+    my MogileFS::Admin $self = shift;
+    my $domain = shift;
+
+    $self->{backend}->do_request("delete_domain", { domain => $domain })
+        or return undef;
+    
+    return 1;
+}
+
 # create a class within a domain
 sub create_class {
     my MogileFS::Admin $self = shift;
