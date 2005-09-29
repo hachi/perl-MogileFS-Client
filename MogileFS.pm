@@ -406,6 +406,30 @@ sub get_devices {
 
 }
 
+# get raw information about fids, for enumerating the dataset
+#   ( $from_fid, $to_fid )
+# returns:
+#   { fid => { hashref with keys: domain, class, devcount, length, key } }
+sub list_fids {
+    my MogileFS::Admin $self = shift;
+    my ($fromfid, $tofid) = @_;
+
+    my $res = $self->{backend}->do_request('list_fids', { from => $fromfid, to => $tofid })
+        or return undef;
+
+    my $ret = {};
+    foreach my $i (1..$res->{fid_count}) {
+        $ret->{$res->{"fid_${i}_fid"}} = {
+            key => $res->{"fid_${i}_key"},
+            length => $res->{"fid_${i}_length"},
+            class => $res->{"fid_${i}_class"},
+            domain => $res->{"fid_${i}_domain"},
+            devcount => $res->{"fid_${i}_devcount"},
+        };
+    }
+    return $ret;
+}
+
 # get a hashref of statistics on how the MogileFS server is doing.  there are several
 # sections of statistics, in this form:
 # { 
@@ -436,6 +460,14 @@ sub get_stats {
             host => $res->{"devices${i}host"},
             status => $res->{"devices${i}status"},
             files => $res->{"devices${i}files"},
+        };
+    }
+
+    # get fid statistics if they're provided
+    if ($res->{fidmax} || $res->{fidcount}) {
+        $ret->{fids} = {
+            max => $res->{fidmax},
+            count => $res->{fidcount},
         };
     }
 
