@@ -25,7 +25,7 @@ use strict;
 use Carp;
 use IO::WrapTie;
 use LWP::UserAgent;
-use fields qw(root domain backend);
+use fields qw(root domain backend readonly);
 
 sub new {
     my MogileFS $self = shift;
@@ -48,6 +48,12 @@ sub errstr {
     return $self->{backend}->errstr;
 }
 
+sub readonly {
+    my MogileFS $self = shift;
+    return $self->{readonly} = $_[0] ? 1 : 0 if @_;
+    return $self->{readonly};
+}
+
 # expects as argument a hashref of "standard-ip" => "preferred-ip"
 sub set_pref_ip {
     my MogileFS $self = shift;
@@ -59,6 +65,8 @@ sub set_pref_ip {
 # available for writing
 sub new_file {
     my MogileFS $self = shift;
+    return undef if $self->{readonly};
+
     my ($key, $class, $bytes) = @_;
     $bytes += 0;
 
@@ -114,6 +122,8 @@ sub new_file {
 # success, undef on failure.
 sub store_file {
     my MogileFS $self = shift;
+    return undef if $self->{readonly};
+
     my($key, $class, $file) = @_;
     my $fh = $self->new_file($key, $class) or return;
     my $fh_from;
@@ -138,6 +148,8 @@ sub store_file {
 # success, undef on failure.
 sub store_content {
     my MogileFS $self = shift;
+    return undef if $self->{readonly};
+
     my($key, $class, $content) = @_;
     my $fh = $self->new_file($key, $class) or return;
     $content = ref($content) eq 'SCALAR' ? $$content : $content;
@@ -220,6 +232,8 @@ sub get_file_data {
 # something that doesn't exist counts as success, as it doesn't exist.
 sub delete {
     my MogileFS $self = shift;
+    return undef if $self->{readonly};
+
     my $key = shift;
 
     my $rv = $self->{backend}->do_request
@@ -251,6 +265,8 @@ sub sleep {
 # is considered as undef; "file didn't exist" isn't an error).
 sub rename {
     my MogileFS $self = shift;
+    return undef if $self->{readonly};
+
     my ($fkey, $tkey) = @_;
 
     my $rv = $self->{backend}->do_request
@@ -327,6 +343,9 @@ sub _init {
 
     # FIXME: add actual validation
     {
+        # by default, set readonly off
+        $self->{readonly} = $args{readonly} ? 1 : 0;
+
         # root is only needed for NFS based installations
         $self->{root} = $args{root};
 
@@ -357,7 +376,7 @@ package MogileFS::Admin;
 
 use strict;
 use Carp;
-use fields qw(backend);
+use fields qw(backend readonly);
 
 sub new {
     my MogileFS::Admin $self = shift;
@@ -365,10 +384,17 @@ sub new {
 
     my %args = @_;
 
+    $self->{readonly} = $args{readonly} ? 1 : 0;
     $self->{backend} = new MogileFS::Backend ( hosts => $args{hosts} )
         or _fail("couldn't instantiate MogileFS::Backend");
 
     return $self;
+}
+
+sub readonly {
+    my MogileFS::Admin $self = shift;
+    return $self->{readonly} = $_[0] ? 1 : 0 if @_;
+    return $self->{readonly};
 }
 
 sub get_hosts {
@@ -499,6 +525,8 @@ sub get_domains {
 # create a new domain
 sub create_domain {
     my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
     my $domain = shift;
 
     my $res = $self->{backend}->do_request("create_domain", { domain => $domain });
@@ -510,6 +538,8 @@ sub create_domain {
 # delete a domain
 sub delete_domain {
     my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
     my $domain = shift;
 
     $self->{backend}->do_request("delete_domain", { domain => $domain })
@@ -538,6 +568,8 @@ sub update_class {
 # delete a class
 sub delete_class {
     my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
     my ($domain, $class) = @_;
 
     $self->{backend}->do_request("delete_class", {
@@ -577,6 +609,8 @@ sub update_host {
 # delete a host
 sub delete_host {
     my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
     my $host = shift;
     return undef unless $host;
 
@@ -590,6 +624,8 @@ sub delete_host {
 # the host to be set to.  returns 1 on success, undef on error.
 sub change_device_state {
     my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
     my ($host, $device, $state) = @_;
     
     my $res = $self->{backend}->do_request("set_state", {
@@ -615,6 +651,8 @@ sub _fail {
 # modify a class within a domain
 sub _mod_class {
     my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
     my ($domain, $class, $mindevcount, $verb) = @_;
     $verb ||= 'create';
     
@@ -631,6 +669,8 @@ sub _mod_class {
 # modify a host
 sub _mod_host {
     my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
     my ($host, $args, $verb) = @_;
 
     $args ||= {};
