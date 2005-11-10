@@ -1526,4 +1526,9 @@ sub _getset {
     }
 }
 
+sub _fid {
+    my MogileFS::NewHTTPFile $self = shift;
+    return $self->{fid};
+}
+
 1;
