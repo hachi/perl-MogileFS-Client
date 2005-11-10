@@ -490,10 +490,9 @@ sub get_stats {
     }
 
     # get fid statistics if they're provided
-    if ($res->{fidmax} || $res->{fidcount}) {
+    if ($res->{fidmax}) {
         $ret->{fids} = {
             max => $res->{fidmax},
-            count => $res->{fidcount},
         };
     }
 
