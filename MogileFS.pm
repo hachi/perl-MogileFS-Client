@@ -163,6 +163,9 @@ sub store_content {
 # new style calling:
 #   get_paths(key, { noverify => 0/1, zone => "zone" });
 # but with both, second parameter is optional
+#
+# returns list of URLs that key can be found at, or the empty
+# list on either error or no paths
 sub get_paths {
     my MogileFS $self = shift;
     my ($key, $opts) = @_;
@@ -182,7 +185,7 @@ sub get_paths {
             key    => $key,
             noverify => $noverify ? 1 : 0,
             zone   => $zone,
-        }) or return undef;
+        }) or return ();
 
     my @paths = map { $res->{"path$_"} } (1..$res->{paths});
     return @paths if scalar(@paths) > 0 && $paths[0] =~ m!^http://!;
@@ -352,7 +355,7 @@ sub _init {
         # get domain (required)
         $self->{domain} = $args{domain} or
             _fail("constructor requires parameter 'domain'");
-        
+
         # create a new backend object if there's not one already,
         # otherwise call a reload on the existing one
         if ($self->{backend}) {
@@ -458,7 +461,7 @@ sub list_fids {
 
 # get a hashref of statistics on how the MogileFS server is doing.  there are several
 # sections of statistics, in this form:
-# { 
+# {
 #     replication => { "domain-name" => { "class-name" => { devcount => filecount }, ... }, ... },
 # }
 sub get_stats {
@@ -530,7 +533,7 @@ sub create_domain {
 
     my $res = $self->{backend}->do_request("create_domain", { domain => $domain });
     return undef unless $res->{domain} eq $domain;
-    
+
     return 1;
 }
 
@@ -543,7 +546,7 @@ sub delete_domain {
 
     $self->{backend}->do_request("delete_domain", { domain => $domain })
         or return undef;
-    
+
     return 1;
 }
 
@@ -575,7 +578,7 @@ sub delete_class {
             domain => $domain,
             class => $class,
         }) or return undef;
-    
+
     return 1;
 }
 
@@ -626,13 +629,13 @@ sub change_device_state {
     return undef if $self->{readonly};
 
     my ($host, $device, $state) = @_;
-    
+
     my $res = $self->{backend}->do_request("set_state", {
         host => $host,
         device => $device,
         state => $state,
     }) or return undef;
-    
+
     return 1;
 }
 
@@ -654,14 +657,14 @@ sub _mod_class {
 
     my ($domain, $class, $mindevcount, $verb) = @_;
     $verb ||= 'create';
-    
+
     my $res = $self->{backend}->do_request("${verb}_class", {
         domain => $domain,
         class => $class,
         mindevcount => $mindevcount,
     });
     return undef unless $res->{class} eq $class;
-    
+
     return 1;
 }
 
@@ -675,10 +678,10 @@ sub _mod_host {
     $args ||= {};
     $args->{host} = $host;
     $verb ||= 'create';
-    
+
     my $res = $self->{backend}->do_request("${verb}_host", $args);
     return undef unless $res->{host} eq $host;
-    
+
     return 1;
 }
 
@@ -998,7 +1001,7 @@ sub _encode_url_string {
     return undef unless %args;
     return join("&",
                 map { _escape_url_string($_) . '=' .
-                      _escape_url_string($args{$_}) } 
+                      _escape_url_string($args{$_}) }
                 grep { defined $args{$_} } keys %args
                 );
 }
@@ -1488,7 +1491,7 @@ sub BINMODE {
 sub READ {
     my MogileFS::NewHTTPFile $self = shift;
     my $count = $_[1] + 0;
-    
+
     my $max = $self->{length} - $self->{pos};
     $max = $count if $count < $max;
 
@@ -1513,7 +1516,7 @@ sub _fail {
 sub _getset {
     my MogileFS::NewHTTPFile $self = shift;
     my $what = shift;
-    
+
     if (@_) {
         # note: we're a TIEHANDLE interface, so we're not QUITE like a
         # normal class... our parameters tend to come in via an arrayref
