@@ -639,6 +639,24 @@ sub change_device_state {
     return 1;
 }
 
+# change the weight of a device by passing in the hostname and
+# the device id
+sub change_device_weight {
+    my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
+    my ($host, $device, $weight) = @_;
+    $weight += 0;
+
+    my $res = $self->{backend}->do_request("set_weight", {
+        host => $host,
+        device => $device,
+        weight => $weight,
+    }) or return undef;
+
+    return 1;
+}
+
 
 ################################################################################
 # MogileFS::Admin class methods
