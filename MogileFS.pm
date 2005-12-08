@@ -1428,7 +1428,7 @@ sub CLOSE {
     if ($self->{sock}) {
         my $line = $self->_getline;
 
-        return $err->("Unable to read response line from server")
+        return $err->("Unable to read response line from server ($self->{sock})")
             unless defined $line;
 
         if ($line =~ m!^HTTP/\d+\.\d+\s+(\d+)!) {
