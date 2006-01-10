@@ -1,0 +1,5 @@
+1.01 - Jan 10, 2005
+
+        * fix CPU spinning bug in _getline where we didn't handle
+          sysread() returning 0.  (Brad)
+

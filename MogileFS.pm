@@ -1296,7 +1296,8 @@ sub _getline {
         my $data;
         my $bytesin = sysread($self->{sock}, $data, 1024);
         if (defined $bytesin) {
-            $self->{data_in} .= $data;
+            # we can also get 0 here, which means EOF.  no error, but no data.
+            $self->{data_in} .= $data if $bytesin;
         } else {
             next if $! == EAGAIN;
             _fail("error reading from node for device $self->{devid}: $!");
@@ -1306,6 +1307,9 @@ sub _getline {
         if ($self->{data_in} =~ s/^(.*?\r?\n)//) {
             return $1;
         }
+
+        # and if we got no data, it's time to return EOF
+        return undef unless $bytesin;
     }
 
     # if we got here, nothing was readable in our time limit
