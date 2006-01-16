@@ -621,6 +621,19 @@ sub delete_host {
     return 1;
 }
 
+# create a new device
+sub create_device {
+    my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+
+    my (%opts) = @_;   #hostname or hostid, devid, state (optional)
+
+    my $res = $self->{backend}->do_request("create_device", \%opts)
+        or return undef;
+
+    return 1;
+}
+
 # change the state of a device; pass in the hostname of the host the
 # device is located on, the device id number, and the state you want
 # the host to be set to.  returns 1 on success, undef on error.
