@@ -63,18 +63,24 @@ sub set_pref_ip {
 
 # returns MogileFS::NewFile object, or undef if no device
 # available for writing
+# ARGS: ( key, class, bytes?, opts? )
+# where bytes is optional and the length of the file and opts is also optional
+# and is a hashref of options.  supported options: fid = unique file id to use
+# instead of just picking one in the database.
 sub new_file {
     my MogileFS $self = shift;
     return undef if $self->{readonly};
 
-    my ($key, $class, $bytes) = @_;
+    my ($key, $class, $bytes, $opts) = @_;
     $bytes += 0;
+    $opts ||= {};
 
     my $res = $self->{backend}->do_request
         ("create_open", {
             domain => $self->{domain},
             class  => $class,
             key    => $key,
+            fid    => $opts->{fid} || 0, # fid should be specified, or pass 0 meaning to auto-generate one
             multi_dest => 1,
         }) or return undef;
 
@@ -124,8 +130,8 @@ sub store_file {
     my MogileFS $self = shift;
     return undef if $self->{readonly};
 
-    my($key, $class, $file) = @_;
-    my $fh = $self->new_file($key, $class) or return;
+    my($key, $class, $file, $opts) = @_;
+    my $fh = $self->new_file($key, $class, undef, $opts) or return;
     my $fh_from;
     if (ref($file)) {
         $fh_from = $file;
@@ -150,8 +156,8 @@ sub store_content {
     my MogileFS $self = shift;
     return undef if $self->{readonly};
 
-    my($key, $class, $content) = @_;
-    my $fh = $self->new_file($key, $class) or return;
+    my($key, $class, $content, $opts) = @_;
+    my $fh = $self->new_file($key, $class, undef, $opts) or return;
     $content = ref($content) eq 'SCALAR' ? $$content : $content;
     $fh->print($content);
     $fh->close or return;
