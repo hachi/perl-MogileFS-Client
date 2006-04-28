@@ -846,6 +846,11 @@ sub do_request {
         return _fail("socket never became readable");
     }
 
+    # guard against externally-modified $/ changes.  patch from
+    # Andreas J. Koenig.  in practice nobody should do this, though,
+    # and this line should be unnecessary.
+    local $/ = "\n";
+
     my $line = <$sock>;
     _debug("RESPONSE: $line");
     return _fail("socket closed on read")
