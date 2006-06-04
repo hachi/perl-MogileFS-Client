@@ -1148,7 +1148,7 @@ sub _fail {
     croak "MogileFS::NewFile: $_[0]";
 }
 
-*_debug = *MogileFS::debug;
+*_debug = *MogileFS::_debug;
 
 # get a reference to the hash part of the $fh typeglob ref
 sub _get_attrs {
@@ -1558,7 +1558,7 @@ sub _fail {
     croak "MogileFS::NewHTTPFile: $_[0]";
 }
 
-*_debug = *MogileFS::debug;
+*_debug = *MogileFS::_debug;
 
 sub _getset {
     my MogileFS::NewHTTPFile $self = shift;
