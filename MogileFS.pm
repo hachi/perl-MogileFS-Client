@@ -1290,6 +1290,7 @@ sub _connect_sock {
         push @down_hosts, $self->{host};
         if (my $dest = shift @{$self->{backup_dests}}) {
             # dest is [$devid,$path]
+            _debug("connecting to $self->{host} (dev $self->{devid}) failed; now trying $dest->[1] (dev $dest->[0])");
             $self->_parse_url($dest->[1]) or _fail("bogus URL");
             $self->{devid} = $dest->[0];
         } else {
