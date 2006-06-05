@@ -367,7 +367,9 @@ sub _init {
         if ($self->{backend}) {
             $self->{backend}->reload( hosts => $args{hosts} );
         } else {
-            $self->{backend} = MogileFS::Backend->new( hosts => $args{hosts} );
+            $self->{backend} = MogileFS::Backend->new( hosts => $args{hosts},
+                                                       timeout => $self->{timeout},
+                                                       );
         }
         _fail("cannot instantiate MogileFS::Backend") unless $self->{backend};
     }
