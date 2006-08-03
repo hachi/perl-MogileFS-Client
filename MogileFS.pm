@@ -27,6 +27,8 @@ use IO::WrapTie;
 use LWP::UserAgent;
 use fields qw(root domain backend readonly);
 
+our $AUTOLOAD;
+
 sub new {
     my MogileFS $self = shift;
     $self = fields::new($self) unless ref $self;
@@ -324,6 +326,38 @@ sub list_keys {
     }
     return wantarray ? ($resafter, $reslist) : $reslist;
 }
+
+# used to support plugins that have modified the server, this builds things into
+# an argument list and passes them back to the server
+# TODO: there is no readonly protection here?  does it matter?  should we check
+# with the server to see what methods they support?  (and if they should be disallowed
+# when the client is in readonly mode?)
+sub AUTOLOAD {
+    my MogileFS $self = shift;
+
+    # remove everything up to the last colon, so we only have the method name left
+    my $method = $AUTOLOAD;
+    $method =~ s/^.*://; 
+
+    # let this work
+    no strict 'refs';
+
+    # create a method to pass this on back
+    *{$AUTOLOAD} = sub {
+        # pre-assemble the arguments into a hashref
+        my $ct = 0;
+        my $args = {};
+        $args->{"arg" . ++$ct} = shift() while @_;
+        $args->{"argcount"} = $ct;
+
+        # now call and return whatever we get back from the backend
+        return $self->{backend}->do_request("plugin_$method", $args);
+    };
+
+    # now pass through
+    goto &$AUTOLOAD;
+}
+
 
 ################################################################################
 # MogileFS class methods
