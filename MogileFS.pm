@@ -350,6 +350,9 @@ sub AUTOLOAD {
         $args->{"arg" . ++$ct} = shift() while @_;
         $args->{"argcount"} = $ct;
 
+        # now put in standard args
+        $args->{"domain"} = $self->{domain};
+
         # now call and return whatever we get back from the backend
         return $self->{backend}->do_request("plugin_$method", $args);
     };
