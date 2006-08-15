@@ -337,7 +337,9 @@ sub AUTOLOAD {
 
     # remove everything up to the last colon, so we only have the method name left
     my $method = $AUTOLOAD;
-    $method =~ s/^.*://; 
+    $method =~ s/^.*://;
+
+    return if $method eq 'DESTROY';
 
     # let this work
     no strict 'refs';
