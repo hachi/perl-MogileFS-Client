@@ -448,6 +448,14 @@ sub readonly {
     return $self->{readonly};
 }
 
+sub replicate_now {
+    my MogileFS::Admin $self = shift;
+
+    my $res = $self->{backend}->do_request("replicate_now", {})
+        or return undef;
+    return 1;
+}
+
 sub get_hosts {
     my MogileFS::Admin $self = shift;
     my $hostid = shift;
