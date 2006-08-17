@@ -26,6 +26,7 @@ use Carp;
 use IO::WrapTie;
 use LWP::UserAgent;
 use fields qw(root domain backend readonly);
+use Time::HiRes ();
 
 our $AUTOLOAD;
 
@@ -1358,6 +1359,7 @@ sub _getline {
 
     # nope, we have to read a line
     my $nfound;
+    my $t1 = Time::HiRes::time();
     while ($nfound = select($rin, undef, undef, 3)) {
         my $data;
         my $bytesin = sysread($self->{sock}, $data, 1024);
@@ -1375,10 +1377,15 @@ sub _getline {
         }
 
         # and if we got no data, it's time to return EOF
-        return undef unless $bytesin;
+        unless ($bytesin) {
+            $@ = "\$bytesin is 0";
+            return undef;
+        }
     }
 
     # if we got here, nothing was readable in our time limit
+    my $t2 = Time::HiRes::time();
+    $@ = sprintf("not readable in %0.02f seconds", $t2-$t1);
     return undef;
 }
 
@@ -1498,7 +1505,7 @@ sub CLOSE {
     if ($self->{sock}) {
         my $line = $self->_getline;
 
-        return $err->("Unable to read response line from server ($self->{sock})")
+        return $err->("Unable to read response line from server ($self->{sock}) after PUT of $self->{length} to $self->{uri}.  _getline says: $@")
             unless defined $line;
 
         if ($line =~ m!^HTTP/\d+\.\d+\s+(\d+)!) {
