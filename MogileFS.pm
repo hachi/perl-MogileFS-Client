@@ -1355,6 +1355,7 @@ sub _connect_sock {
 # does it in terms of non-blocking operations.
 sub _getline {
     my MogileFS::NewHTTPFile $self = shift;
+    my $timeout = shift || 3;
     return undef unless $self->{sock};
 
     # short cut if we already have data read
@@ -1368,7 +1369,7 @@ sub _getline {
     # nope, we have to read a line
     my $nfound;
     my $t1 = Time::HiRes::time();
-    while ($nfound = select($rin, undef, undef, 3)) {
+    while ($nfound = select($rin, undef, undef, $timeout)) {
         my $data;
         my $bytesin = sysread($self->{sock}, $data, 1024);
         if (defined $bytesin) {
@@ -1511,7 +1512,7 @@ sub CLOSE {
 
     # get response from put
     if ($self->{sock}) {
-        my $line = $self->_getline;
+        my $line = $self->_getline(6);  # wait up to 6 seconds for response to PUT.
 
         return $err->("Unable to read response line from server ($self->{sock}) after PUT of $self->{length} to $self->{uri}.  _getline says: $@")
             unless defined $line;
