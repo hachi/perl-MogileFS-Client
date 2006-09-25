@@ -11,6 +11,9 @@ use fields ('root',      # filesystem root.  only needed for now-deprecated NFS 
             'readonly',  # bool: if set, client won't permit write actions/etc.  just reads.
             );
 use Time::HiRes ();
+use MogileFS::Backend;
+use MogileFS::NewHTTPFile;
+use MogileFS::NewDiskFile;
 
 our $AUTOLOAD;
 

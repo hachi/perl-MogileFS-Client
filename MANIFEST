@@ -7,3 +7,4 @@ lib/MogileFS/NewHTTPFile.pm
 lib/MogileFS/NewDiskFile.pm
 META.yml                                 Module meta-data (added by MakeMaker)
 t/00use.t
+t/10-basics.t

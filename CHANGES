@@ -1,3 +1,8 @@
+1.03 - Sep 25, 2006
+
+        * rename from MogileFS to MogileFS::Client, add POD, prep for
+          future work.
+
         * more verbose error messages
 
         * AUTOLOAD-proxy unknown methods to server for server-based

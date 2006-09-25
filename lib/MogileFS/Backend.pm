@@ -35,6 +35,32 @@ sub reload {
     return $self->_init(@_);
 }
 
+sub _init {
+    my MogileFS::Backend $self = shift;
+
+    my %args = @_;
+
+    # FIXME: add actual validation
+    {
+        $self->{hosts} = $args{hosts} or
+            _fail("constructor requires parameter 'hosts'");
+
+        _fail("'hosts' argument must be an arrayref")
+            unless ref $self->{hosts} eq 'ARRAY';
+
+        _fail("'hosts' argument must be of form: 'host:port'")
+            if grep(! /:\d+$/, @{$self->{hosts}});
+
+        _fail("'timeout' argument must be a number")
+            if $args{timeout} && $args{timeout} !~ /^\d+$/;
+        $self->{timeout} = $args{timeout} || 3;
+    }
+
+    $self->{host_dead} = {};
+
+    return $self;
+}
+
 sub set_pref_ip {
     my MogileFS::Backend $self = shift;
     $self->{pref_ip} = shift;
@@ -154,7 +180,7 @@ sub _fail {
     croak "MogileFS::Backend: $_[0]";
 }
 
-*_debug = *MogileFS::_debug;
+*_debug = *MogileFS::Client::_debug;
 
 sub _connect_sock { # sock, sin, timeout
     my ($sock, $sin, $timeout) = @_;
@@ -224,32 +250,6 @@ sub _sock_to_host { # (host)
     return $sock;
 }
 
-sub _init {
-    my MogileFS::Backend $self = shift;
-
-    my %args = @_;
-
-    # FIXME: add actual validation
-    {
-        $self->{hosts} = $args{hosts} or
-            _fail("constructor requires parameter 'hosts'");
-
-        _fail("'hosts' argument must be an arrayref")
-            unless ref $self->{hosts} eq 'ARRAY';
-
-        _fail("'hosts' argument must be of form: 'host:port'")
-            if grep(! /:\d+$/, @{$self->{hosts}});
-
-        _fail("'timeout' argument must be a number")
-            if $args{timeout} && $args{timeout} !~ /^\d+$/;
-        $self->{timeout} = $args{timeout} || 3;
-    }
-
-    $self->{host_dead} = {};
-
-    return $self;
-}
-
 # return a new mogilefsd socket, trying different hosts until one is found,
 # or undef if they're all dead
 sub _get_sock {
@@ -295,7 +295,7 @@ sub _unescape_url_string {
 
 sub _encode_url_string {
     my %args = @_;
-    return undef unless %args;
+    return "" unless %args;
     return join("&",
                 map { _escape_url_string($_) . '=' .
                       _escape_url_string($args{$_}) }
