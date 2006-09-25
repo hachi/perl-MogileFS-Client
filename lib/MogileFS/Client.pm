@@ -1,22 +1,4 @@
 #!/usr/bin/perl
-#
-# MogileFS client library
-#
-# Copyright 2004 Danga Interactive
-#
-# Authors:
-#    Brad Whitaker <whitaker@danga.com>
-#    Brad Fitzpatrick <brad@danga.com>
-#    Mark Smith <marksmith@danga.com>
-#
-# License:
-#    GPL or Artistic License
-#
-# FIXME: add url to website
-# FIXME: add POD docs
-#
-
-
 package MogileFS::Client;
 
 use strict;
@@ -82,9 +64,12 @@ sub _init {
 
 sub errstr {
     my MogileFS::Client $self = shift;
-    return undef unless $self;
-
     return $self->{backend}->errstr;
+}
+
+sub errcode {
+    my MogileFS::Client $self = shift;
+    return $self->{backend}->errcode;
 }
 
 sub readonly {
@@ -421,4 +406,64 @@ sub _debug {
     return 1;
 }
 
+
 1;
+__END__
+
+=head1 NAME
+
+MogileFS::Client - client library for the MogileFS distributed file system
+
+=head1 SYNOPSIS
+
+ use MogileFS::Client;
+
+ # create client object w/ server-configured namespace and IPs of trackers
+ $mogc = MogileFS::Client->new(domain => "foo.com::my_namespace",
+                               hosts  => ['10.0.0.2', '10.0.0.3']);
+
+ # create a file
+ $key   = "image_of_userid:$userid";   # mogile is a flat namespace.  no paths.
+ $class = "user_images";               # must be configured on server
+ $fh = $mogc->new_file($key, $class);
+
+ print $fh $data;
+
+ unless ($fh->close) {
+    die "Error writing file: " . $mogc->errcode . ": " . $mogc->errstr;
+ }
+
+ # Find the URLs that the file was replicated to.  May change over time.
+ @urls = $mogc->get_paths($key);
+
+ # no longer want it?
+ $mogc->delete($key);
+
+ # read source for more methods.  those are the major ones.
+
+=head1 DESCRIPTION
+
+See http://www.danga.com/mogilefs/
+
+=head1 COPYRIGHT
+
+This module is Copyright 2003-2004 Brad Fitzpatrick,
+and copyright 2005-2006 Six Apart, Ltd.
+
+All rights reserved.
+
+You may distribute under the terms of either the GNU General Public
+License or the Artistic License, as specified in the Perl README file.
+
+=head1 WARRANTY
+
+This is free software. IT COMES WITHOUT WARRANTY OF ANY KIND.
+
+=head1 AUTHORS
+
+Brad Fitzpatrick <brad@danga.com>
+
+Brad Whitaker <whitaker@danga.com>
+
+Mark Smith <marksmith@danga.com>
+
