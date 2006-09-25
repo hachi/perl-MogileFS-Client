@@ -1,3 +1,8 @@
+        * more verbose error messages
+
+        * AUTOLOAD-proxy unknown methods to server for server-based
+          plugins (Mark Smith)
+
         * Andreas J. Koenig <andreas.koenig.gmwojprw@franz.ak.mind.de>:
 	  The following bugfix guards against externally influenced $/. In
 	  our case, somebody (not @danga :) had set $/ to undef and so the

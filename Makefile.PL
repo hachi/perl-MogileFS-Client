@@ -12,9 +12,9 @@
 use ExtUtils::MakeMaker;
 
 WriteMakefile(
-    NAME                    => 'MogileFS',
-    VERSION                 => '1.01',
-    AUTHOR                  => 'Brad Whitaker <whitaker@danga.com>',
+    NAME                    => 'MogileFS::Client',
+    VERSION                 => '1.02',
+    AUTHOR                  => 'Brad Fitzpatrick <brad@danga.com>',
     ABSTRACT                => 'MogileFS client library',
     PREREQ_PM               => {
         'IO::WrapTie'     => '2.102',
@@ -22,13 +22,5 @@ WriteMakefile(
         fields            => 0,
         'Test::More'      => 0,
     },
-    dist                    => {
-        CI                      => "cvs commit",
-        RCS_LABEL               => 'cvs tag RELEASE_$(VERSION_SYM)',
-        SUFFIX                  => ".gz",
-        DIST_DEFAULT            => 'all tardist',
-        COMPRESS                => "gzip",
-    },
-
 );
 

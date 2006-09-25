@@ -1,8 +1,9 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Test::More tests => 1;
+use Test::More tests => 2;
 
-my $mod = "MogileFS";
+use_ok("MogileFS::Client");
+use_ok("MogileFS::Admin");
 
-use_ok($mod);
+
