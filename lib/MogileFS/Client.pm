@@ -13,7 +13,6 @@ use fields ('root',      # filesystem root.  only needed for now-deprecated NFS 
 use Time::HiRes ();
 use MogileFS::Backend;
 use MogileFS::NewHTTPFile;
-use MogileFS::NewDiskFile;
 
 our $AUTOLOAD;
 
@@ -88,7 +87,7 @@ sub set_pref_ip {
         if $self->{backend};
 }
 
-# returns MogileFS::NewDiskFile object, or undef if no device
+# returns MogileFS::NewHTTPFile object, or undef if no device
 # available for writing
 # ARGS: ( key, class, bytes?, opts? )
 # where bytes is optional and the length of the file and opts is also optional
@@ -125,28 +124,21 @@ sub new_file {
     my $main_dest = shift @$dests;
     my ($main_devid, $main_path) = ($main_dest->[0], $main_dest->[1]);
 
-    # create a MogileFS::NewDiskFile object, based off of IO::File
-    if ($main_path =~ m!^http://!) {
-        return IO::WrapTie::wraptie('MogileFS::NewHTTPFile',
-                                    mg    => $self,
-                                    fid   => $res->{fid},
-                                    path  => $main_path,
-                                    devid => $main_devid,
-                                    backup_dests => $dests,
-                                    class => $class,
-                                    key   => $key,
-                                    content_length => $bytes+0,
-                                    );
-    } else {
-        return MogileFS::NewDiskFile->new(
-                                      mg    => $self,
-                                      fid   => $res->{fid},
-                                      path  => $main_path,
-                                      devid => $main_devid,
-                                      class => $class,
-                                      key   => $key
-                                      );
+    # create a MogileFS::NewHTTPFile object, based off of IO::File
+    unless ($main_path =~ m!^http://!) {
+        Carp::croak("This version of MogileFS::Client no longer supports non-http storage URLs.\n");
     }
+
+    return IO::WrapTie::wraptie('MogileFS::NewHTTPFile',
+                                mg    => $self,
+                                fid   => $res->{fid},
+                                path  => $main_path,
+                                devid => $main_devid,
+                                backup_dests => $dests,
+                                class => $class,
+                                key   => $key,
+                                content_length => $bytes+0,
+                                );
 }
 
 # Wrapper around new_file, print, and close.
@@ -262,7 +254,6 @@ sub get_file_data {
     return undef;
 }
 
-# TODO: delete method on MogileFS::NewDiskFile object
 # this method returns undef only on a fatal error such as inability to actually
 # delete a resource and inability to contact the server.  attempting to delete
 # something that doesn't exist counts as success, as it doesn't exist.
