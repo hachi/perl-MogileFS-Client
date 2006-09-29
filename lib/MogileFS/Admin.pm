@@ -310,7 +310,16 @@ sub _fail {
     croak "MogileFS::Admin: $_[0]";
 }
 
-*_debug = *MogileFS::_debug;
+# FIXME: is this used?
+sub _debug {
+    return 1 unless $MogileFS::DEBUG;
+    my $msg = shift;
+    my $ref = shift;
+    chomp $msg;
+    eval "use Data::Dumper;";
+    print STDERR "$msg\n" . Dumper($ref) . "\n";
+    return 1;
+}
 
 # modify a class within a domain
 sub _mod_class {
