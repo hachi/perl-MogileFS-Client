@@ -1,3 +1,6 @@
+        * removed support for non-http:// storage node URLs.  that is,
+          "NFS mode" is now gone.  yay.  it always sucked.
+
 1.03 - Sep 25, 2006
 
         * rename from MogileFS to MogileFS::Client, add POD, prep for
