@@ -393,7 +393,9 @@ sub _fail {
     croak "MogileFS::NewHTTPFile: $_[0]";
 }
 
-*_debug = *MogileFS::_debug;
+sub _debug {
+    MogileFS::Client::_debug(@_);
+}
 
 sub _getset {
     my MogileFS::NewHTTPFile $self = shift;
