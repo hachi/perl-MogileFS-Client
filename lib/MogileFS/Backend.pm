@@ -17,6 +17,7 @@ use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
             'sock_cache',   # cached socket to mogilefsd tracker
             'pref_ip',      # hashref; { ip => preferred ip }
             'timeout',      # time in seconds to allow sockets to become readable
+            'last_host_connected',  # "ip:port" of last host connected to
             );
 
 use vars qw($FLAG_NOSIGNAL $PROTO_TCP);
@@ -76,6 +77,8 @@ sub _wait_for_readability {
 
     my $rin = '';
     vec($rin, $fileno, 1) = 1;
+    # FIXME: signals/ptrace attach can interrupt the select.  we should resume selecting
+    # and keep track of hires time remaining
     my $nfound = select($rin, undef, undef, $timeout);
 
     # undef/0 are failure, 1 is success
@@ -125,7 +128,7 @@ sub do_request {
     # wait up to 3 seconds for the socket to come to life
     unless (_wait_for_readability(fileno($sock), $self->{timeout})) {
         close($sock);
-        return _fail("socket never became readable");
+        return _fail("tracker socket never became readable: $self->{last_host_connected}");
     }
 
     # guard against externally-modified $/ changes.  patch from
@@ -234,6 +237,7 @@ sub _sock_to_host { # (host)
         $sin = Socket::sockaddr_in($port, Socket::inet_aton($prefip));
         if (_connect_sock($sock, $sin, 0.1)) {
             $connected = 1;
+            $self->{last_host_connected} = "$prefip:$port";
         } else {
             _debug("failed connect to preferred ip $prefip");
             close $sock;
@@ -245,6 +249,7 @@ sub _sock_to_host { # (host)
         socket($sock, PF_INET, SOCK_STREAM, $proto);
         $sin = Socket::sockaddr_in($port, Socket::inet_aton($ip));
         return undef unless _connect_sock($sock, $sin);
+        $self->{last_host_connected} = $host;
     }
 
     # just throw back the socket we have so far
