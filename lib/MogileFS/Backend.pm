@@ -128,7 +128,7 @@ sub do_request {
     # wait up to 3 seconds for the socket to come to life
     unless (_wait_for_readability(fileno($sock), $self->{timeout})) {
         close($sock);
-        return _fail("tracker socket never became readable: $self->{last_host_connected}");
+        return _fail("tracker socket never became readable ($self->{last_host_connected}) when sending command: [$req]");
     }
 
     # guard against externally-modified $/ changes.  patch from
