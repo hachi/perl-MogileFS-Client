@@ -64,6 +64,11 @@ sub _init {
     return $self;
 }
 
+sub last_tracker {
+    my MogileFS::Client $self = shift;
+    return $self->{backend}->last_tracker;
+}
+
 sub errstr {
     my MogileFS::Client $self = shift;
     return $self->{backend}->errstr;

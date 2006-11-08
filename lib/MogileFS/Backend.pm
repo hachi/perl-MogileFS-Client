@@ -171,6 +171,11 @@ sub errcode {
     return $self->{lasterr};
 }
 
+sub last_tracker {
+    my $self = shift;
+    return $self->{last_host_connected};
+}
+
 sub err {
     my MogileFS::Backend $self = shift;
     return $self->{lasterr} ? 1 : 0;
