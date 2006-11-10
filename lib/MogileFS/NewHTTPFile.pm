@@ -310,10 +310,10 @@ sub CLOSE {
                     $body .= " $l";
                 }
                 $body = substr($body, 0, 512) if length $body > 512;
-                return $err->("HTTP response $1 from upload: $body");
+                return $err->("HTTP response $1 from upload to $self->{sock}: $body");
             }
         } else {
-            return $err->("Response line not understood: $line");
+            return $err->("Response line not understood from $self->{sock}: $line");
         }
         $self->{sock}->close;
     }
