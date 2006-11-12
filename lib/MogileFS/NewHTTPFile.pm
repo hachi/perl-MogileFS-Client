@@ -298,6 +298,7 @@ sub CLOSE {
         if ($line =~ m!^HTTP/\d+\.\d+\s+(\d+)!) {
             # all 2xx responses are success
             unless ($1 >= 200 && $1 <= 299) {
+                my $errcode = $1;
                 # read through to the body
                 my ($found_header, $body);
                 while (defined (my $l = $self->_getline)) {
@@ -310,7 +311,7 @@ sub CLOSE {
                     $body .= " $l";
                 }
                 $body = substr($body, 0, 512) if length $body > 512;
-                return $err->("HTTP response $1 from upload to $self->{sock}: $body");
+                return $err->("HTTP response $errcode from upload of $self->{uri} to $self->{sock}: $body");
             }
         } else {
             return $err->("Response line not understood from $self->{sock}: $line");
