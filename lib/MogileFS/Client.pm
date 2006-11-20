@@ -348,6 +348,35 @@ sub list_keys {
     return wantarray ? ($resafter, $reslist) : $reslist;
 }
 
+sub foreach_key {
+    my MogileFS::Client $self = shift;
+    my $callback = pop;
+    Carp::croak("Last parameter not a subref") unless ref $callback eq "CODE";
+    my %opts = @_;
+    my $prefix = delete $opts{prefix};
+    Carp::croak("Unknown option(s): " . join(", ", keys %opts)) if %opts;
+
+    my $last = "";
+    my $max = 1000;
+    my $count = $max;
+
+    while ($count == $max) {
+        my $res = $self->{backend}->do_request
+            ("list_keys", {
+                domain => $self->{domain},
+                prefix => $prefix,
+                after => $last,
+                limit => $max,
+            }) or return undef;
+        $count = $res->{key_count}+0;
+        for (my $i = 1; $i <= $count; $i++) {
+            $callback->($res->{"key_$i"});
+        }
+        $last = $res->{"key_$count"};
+    }
+    return 1;
+}
+
 # used to support plugins that have modified the server, this builds things into
 # an argument list and passes them back to the server
 # TODO: there is no readonly protection here?  does it matter?  should we check
