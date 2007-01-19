@@ -9,6 +9,7 @@ use fields ('root',      # filesystem root.  only needed for now-deprecated NFS 
             'domain',    # scalar: the MogileFS domain (namespace).
             'backend',   # MogileFS::Backend object
             'readonly',  # bool: if set, client won't permit write actions/etc.  just reads.
+            'hooks',     # hash: hookname -> coderef
             );
 use Time::HiRes ();
 use MogileFS::Backend;
@@ -64,6 +65,29 @@ sub _init {
     return $self;
 }
 
+sub run_hook {
+    my MogileFS::Client $self = shift;
+    my $hookname = shift || return;
+
+    my $hook = $self->{hooks}->{$hookname};
+    return unless $hook;
+
+    eval { $hook->(@_) };
+
+    warn "MogileFS::Client hook '$hookname' threw error: $@\n" if $@;
+}
+
+sub add_hook {
+    my MogileFS::Client $self = shift;
+    my $hookname = shift || return;
+
+    if (@_) {
+        $self->{hooks}->{$hookname} = shift;
+    } else {
+        delete $self->{hooks}->{$hookname};
+    }
+}
+
 sub last_tracker {
     my MogileFS::Client $self = shift;
     return $self->{backend}->last_tracker;
@@ -106,6 +130,8 @@ sub new_file {
     $bytes += 0;
     $opts ||= {};
 
+    $self->run_hook('new_file_start', $self, $key, $class, $opts);
+
     my $res = $self->{backend}->do_request
         ("create_open", {
             domain => $self->{domain},
@@ -134,6 +160,8 @@ sub new_file {
         Carp::croak("This version of MogileFS::Client no longer supports non-http storage URLs.\n");
     }
 
+    $self->run_hook('new_file_end', $self, $key, $class, $opts);
+
     return IO::WrapTie::wraptie('MogileFS::NewHTTPFile',
                                 mg    => $self,
                                 fid   => $res->{fid},
@@ -155,6 +183,8 @@ sub store_file {
     return undef if $self->{readonly};
 
     my($key, $class, $file, $opts) = @_;
+    $self->run_hook('store_file_start', $self, $key, $class, $opts);
+
     my $fh = $self->new_file($key, $class, undef, $opts) or return;
     my $fh_from;
     if (ref($file)) {
@@ -167,6 +197,9 @@ sub store_file {
         $fh->print($chunk);
         $bytes += $len;
     }
+
+    $self->run_hook('store_file_end', $self, $key, $class, $opts);
+
     close $fh_from unless ref $file;
     $fh->close or return;
     $bytes;
@@ -181,9 +214,15 @@ sub store_content {
     return undef if $self->{readonly};
 
     my($key, $class, $content, $opts) = @_;
+
+    $self->run_hook('store_content_start', $self, $key, $class, $opts);
+
     my $fh = $self->new_file($key, $class, undef, $opts) or return;
     $content = ref($content) eq 'SCALAR' ? $$content : $content;
     $fh->print($content);
+
+    $self->run_hook('store_content_end', $self, $key, $class, $opts);
+
     $fh->close or return;
     length($content);
 }
@@ -209,6 +248,8 @@ sub get_paths {
         $noverify = 1 if $opts;
     }
 
+    $self->run_hook('get_paths_start', $self, $key, $opts);
+
     my $res = $self->{backend}->do_request
         ("get_paths", {
             domain => $self->{domain},
@@ -218,6 +259,9 @@ sub get_paths {
         }) or return ();
 
     my @paths = map { $res->{"path$_"} } (1..$res->{paths});
+
+    $self->run_hook('get_paths_end', $self, $key, $opts);
+
     return @paths if scalar(@paths) > 0 && $paths[0] =~ m!^http://!;
     return map { "$self->{root}/$_"} @paths;
 }
