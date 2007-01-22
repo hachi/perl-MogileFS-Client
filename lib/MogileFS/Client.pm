@@ -88,6 +88,13 @@ sub add_hook {
     }
 }
 
+sub add_backend_hook {
+    my MogileFS::Client $self = shift;
+    my $backend = $self->{backend};
+
+    $backend->add_hook(@_);
+}
+
 sub last_tracker {
     my MogileFS::Client $self = shift;
     return $self->{backend}->last_tracker;

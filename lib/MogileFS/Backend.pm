@@ -18,6 +18,7 @@ use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
             'pref_ip',      # hashref; { ip => preferred ip }
             'timeout',      # time in seconds to allow sockets to become readable
             'last_host_connected',  # "ip:port" of last host connected to
+            'hooks',        # hash: hookname -> coderef
             );
 
 use vars qw($FLAG_NOSIGNAL $PROTO_TCP);
@@ -63,6 +64,29 @@ sub _init {
     return $self;
 }
 
+sub run_hook {
+    my MogileFS::Backend $self = shift;
+    my $hookname = shift || return;
+
+    my $hook = $self->{hooks}->{$hookname};
+    return unless $hook;
+
+    eval { $hook->(@_) };
+
+    warn "MogileFS::Backend hook '$hookname' threw error: $@\n" if $@;
+}
+
+sub add_hook {
+    my MogileFS::Backend $self = shift;
+    my $hookname = shift || return;
+
+    if (@_) {
+        $self->{hooks}->{$hookname} = shift;
+    } else {
+        delete $self->{hooks}->{$hookname};
+    }
+}
+
 sub set_pref_ip {
     my MogileFS::Backend $self = shift;
     $self->{pref_ip} = shift;
@@ -102,12 +126,15 @@ sub do_request {
 
     if ($sock) {
         # try our cached one, but assume it might be bogus
+        $self->run_hook('do_request_start', $cmd, $self->{last_host_connected});
         _debug("SOCK: cached = $sock, REQ: $req");
         $rv = send($sock, $req, $FLAG_NOSIGNAL);
         if ($! || ! defined $rv) {
             # undef is error, but $! may not be populated, we've found
+            $self->run_hook('do_request_send_error', $cmd, $self->{last_host_connected});
             undef $self->{sock_cache};
         } elsif ($rv != $reqlen) {
+            $self->run_hook('do_request_length_mismatch', $cmd, $self->{last_host_connected});
             return _fail("send() didn't return expected length ($rv, not $reqlen)");
         }
     }
@@ -115,11 +142,14 @@ sub do_request {
     unless ($rv) {
         $sock = $self->_get_sock
             or return _fail("couldn't connect to mogilefsd backend");
+        $self->run_hook('do_request_start', $cmd, $self->{last_host_connected});
         _debug("SOCK: $sock, REQ: $req");
         $rv = send($sock, $req, $FLAG_NOSIGNAL);
         if ($!) {
+            $self->run_hook('do_request_send_error', $cmd, $self->{last_host_connected});
             return _fail("error talking to mogilefsd tracker: $!");
         } elsif ($rv != $reqlen) {
+            $self->run_hook('do_request_length_mismatch', $cmd, $self->{last_host_connected});
             return _fail("send() didn't return expected length ($rv, not $reqlen)");
         }
         $self->{sock_cache} = $sock;
@@ -128,6 +158,7 @@ sub do_request {
     # wait up to 3 seconds for the socket to come to life
     unless (_wait_for_readability(fileno($sock), $self->{timeout})) {
         close($sock);
+        $self->run_hook('do_request_read_timeout', $cmd, $self->{last_host_connected});
         return _fail("tracker socket never became readable ($self->{last_host_connected}) when sending command: [$req]");
     }
 
@@ -137,7 +168,11 @@ sub do_request {
     local $/ = "\n";
 
     my $line = <$sock>;
+
+    $self->run_hook('do_request_finished', $cmd, $self->{last_host_connected});
+
     _debug("RESPONSE: $line");
+
     return _fail("socket closed on read")
         unless defined $line;
 
