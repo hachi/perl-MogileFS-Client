@@ -301,7 +301,7 @@ sub change_device_weight {
     return 1;
 }
 
-# returns a hash (list) of key => options
+# returns a hash (list) of key => weight
 sub _get_slave_keys {
     my MogileFS::Admin $self = shift;
     my $backend = $self->{backend};
@@ -387,14 +387,45 @@ sub slave_add {
         return 0;
     }
 
-    my $res = $self->{backend}->do_request("set_server_setting", {
-        key => "slave_$key",
+    my $res = $backend->do_request("set_server_setting", {
+        key   => "slave_$key",
         value => join('|', $dsn, $username, $password),
     }) or return undef;
 
     $slave_keys{$key} = undef;
 
     $self->_set_slave_keys(%slave_keys);
+
+    return 1;
+}
+
+sub slave_modify {
+    my MogileFS::Admin $self = shift;
+    my $key = shift;
+    my %opts = @_;
+
+    my $backend = $self->{backend};
+
+    my %slave_keys = $self->_get_slave_keys;
+
+    unless (exists $slave_keys{$key}) {
+        return 0;
+    }
+
+    my $get_res = $backend->do_request("server_setting", {
+        key => "slave_$key",
+    }) or return undef;
+
+    my ($dsn, $username, $password) = split /\|/, $get_res->{value};
+
+    $dsn      = $opts{dsn}      if exists $opts{dsn};
+    $username = $opts{username} if exists $opts{username};
+    $password = $opts{password} if exists $opts{password};
+
+    my $set_res = $backend->do_request("set_server_setting", {
+        key   => "slave_$key",
+        value => join('|', $dsn, $username, $password),
+    }) or return undef;
 
     return 1;
 }
@@ -411,8 +442,8 @@ sub slave_delete {
         return 0;
     }
 
-    my $res = $self->{backend}->do_request("set_server_setting", {
-        key => "slave_$key",
+    my $res = $backend->do_request("set_server_setting", {
+        key   => "slave_$key",
         value => undef,
     }) or return undef;
 
