@@ -434,8 +434,6 @@ sub foreach_key {
 # with the server to see what methods they support?  (and if they should be disallowed
 # when the client is in readonly mode?)
 sub AUTOLOAD {
-    my MogileFS::Client $self = shift;
-
     # remove everything up to the last colon, so we only have the method name left
     my $method = $AUTOLOAD;
     $method =~ s/^.*://;
@@ -447,6 +445,7 @@ sub AUTOLOAD {
 
     # create a method to pass this on back
     *{$AUTOLOAD} = sub {
+        my MogileFS::Client $self = shift;
         # pre-assemble the arguments into a hashref
         my $ct = 0;
         my $args = {};
