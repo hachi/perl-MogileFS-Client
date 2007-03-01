@@ -197,7 +197,7 @@ sub do_request {
 
 sub errstr {
     my MogileFS::Backend $self = shift;
-
+    return unless $self->{'lasterr'};
     return join(" ", $self->{'lasterr'}, $self->{'lasterrstr'});
 }
 
