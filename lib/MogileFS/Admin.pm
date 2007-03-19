@@ -58,7 +58,7 @@ sub get_devices {
 
     my @ret = ();
     foreach my $ct (1..$res->{devices}) {
-        push @ret, { (map { $_ => $res->{"dev${ct}_$_"} } qw(devid hostid status)),
+        push @ret, { (map { $_ => $res->{"dev${ct}_$_"} } qw(devid hostid status observed_state utilization)),
                      (map { $_ => $res->{"dev${ct}_$_"}+0 } qw(mb_total mb_used weight)) };
     }
 
