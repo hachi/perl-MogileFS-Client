@@ -1,3 +1,5 @@
+        * add observed_state and I/O utiliz% columns to mogadm check.
+
         * removed support for non-http:// storage node URLs.  that is,
           "NFS mode" is now gone.  yay.  it always sucked.
 
