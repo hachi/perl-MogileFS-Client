@@ -1,3 +1,5 @@
+1.04 - Mar 26, 2007
+
         * add observed_state and I/O utiliz% columns to mogadm check.
 
         * removed support for non-http:// storage node URLs.  that is,
