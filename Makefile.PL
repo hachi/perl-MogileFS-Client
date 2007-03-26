@@ -13,7 +13,7 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
     NAME                    => 'MogileFS::Client',
-    VERSION                 => '1.03',
+    VERSION                 => '1.04',
     AUTHOR                  => 'Brad Fitzpatrick <brad@danga.com>',
     ABSTRACT                => 'MogileFS client library',
     PREREQ_PM               => {
