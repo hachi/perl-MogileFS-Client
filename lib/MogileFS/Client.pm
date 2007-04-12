@@ -137,6 +137,14 @@ sub new_file {
     $bytes += 0;
     $opts ||= {};
 
+    # Takes plugin args like { 'meta.keys' => 1, 'meta.key1' => 'mtime', 'meta.value1' => time(), }
+    my $plugin_args = $opts->{plugin_args} || {};
+    my $create_close_args = {};
+
+    while (my ($key, $value) = each %$plugin_args) {
+        $create_close_args->{"plugin.$key"} = $value;
+    }
+
     $self->run_hook('new_file_start', $self, $key, $class, $opts);
 
     my $res = $self->{backend}->do_request
@@ -178,6 +186,7 @@ sub new_file {
                                 class => $class,
                                 key   => $key,
                                 content_length => $bytes+0,
+                                create_close_args => $create_close_args,
                                 );
 }
 

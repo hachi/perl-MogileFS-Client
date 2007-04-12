@@ -31,6 +31,7 @@ use fields ('host',
             'backup_dests',
             'bytes_out',      # count of how many bytes we've written to the socket
             'data_in',        # storage for data we've read from the socket
+            'create_close_args',  # Extra arguments hashref for the do_request of create_close during CLOSE
             );
 
 sub path  { _getset(shift, 'path');      }
@@ -62,6 +63,7 @@ sub TIEHANDLE {
     $self->{$_} = $args{$_} foreach qw(mg fid devid class key);
     $self->{bytes_out} = 0;
     $self->{data_in} = '';
+    $self->{create_close_args} = $args{create_close_args} || {};
 
     return $self;
 }
@@ -326,10 +328,13 @@ sub CLOSE {
     my $devid = $self->{devid};
     my $path  = $self->{path};
 
+    my $raw_args = $self->{create_close_args};
+
     my $key = shift || $self->{key};
 
     my $rv = $mg->{backend}->do_request
         ("create_close", {
+            %$raw_args,
             fid    => $fid,
             devid  => $devid,
             domain => $domain,
