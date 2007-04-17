@@ -90,7 +90,9 @@ sub new {
 
 =head2 reload
 
-WRITEME
+  $mogc->reload( %OPTIONS )
+
+Re-init the object, like you'd just reconstructed it with 'new', but change it in-place instead.  Useful if you have a system which reloads a config file, and you want to update a singleton $mogc handle's config value.
 
 =cut
 
@@ -134,7 +136,8 @@ sub _init {
 
 =head2 last_tracker
 
-WRITEME
+Returns a scalar of form "ip:port", representing the last mogilefsd
+'tracker' server which was talked to.
 
 =cut
 
@@ -145,7 +148,13 @@ sub last_tracker {
 
 =head2 errstr
 
-WRITEME
+Returns string representation of the last error that occured.  It
+includes the error code (same as method 'errcode') and a space before
+the optional English error message.
+
+This isn't necessarily guaranteed to reset after a successful
+operation.  Only call it after another operation returns an error.
+
 
 =cut
 
@@ -156,7 +165,11 @@ sub errstr {
 
 =head2 errcode
 
-WRITEME
+Returns an error code.  Not a number, but a string identifier
+(e.g. "no_domain") which is stable for use in error handling logic.
+
+This isn't necessarily guaranteed to reset after a successful
+operation.  Only call it after another operation returns an error.
 
 =cut
 
@@ -167,7 +180,12 @@ sub errcode {
 
 =head2 readonly
 
-WRITEME
+  $is_readonly = $mogc->readonly
+  $mogc->readonly(1)
+
+Getter/setter to mark this client object as read-only.  Purely a local
+operation/restriction, doesn't do a network operation to the mogilefsd
+server.
 
 =cut
 
@@ -177,22 +195,18 @@ sub readonly {
     return $self->{readonly};
 }
 
-=head2 set_pref_ip
-
-WRITEME
-
-=cut
-
-# expects as argument a hashref of "standard-ip" => "preferred-ip"
-sub set_pref_ip {
-    my MogileFS::Client $self = shift;
-    $self->{backend}->set_pref_ip(shift)
-        if $self->{backend};
-}
-
 =head2 new_file
 
-WRITEME
+  $mogc->new_file($key)
+  $mogc->new_file($key, $class)
+  $mogc->new_file($key, $class, $opts_hashref)
+
+Start creating a new filehandle with the given key, and option given
+class and options.
+
+Returns a filehandle you should then print to, and later close to
+complete the operation.  B<NOTE:> check the return value from close!
+If your close didn't succeed, the file didn't get saved!
 
 =cut
 
@@ -264,14 +278,16 @@ sub new_file {
 
 =head2 store_file
 
-WRITEME
+  $mogc->store_file($key, $class, $fh_or_filename[, $opts_hash])
+
+Wrapper around new_file, print, and close.
+
+Given a key, class, and a filehandle or filename, stores the file
+contents in MogileFS.  Returns the number of bytes stored on success,
+undef on failure.
 
 =cut
 
-# Wrapper around new_file, print, and close.
-# Given a key, class, and a filehandle or filename, stores the
-# file contents in MogileFS. Returns the number of bytes stored on
-# success, undef on failure.
 sub store_file {
     my MogileFS::Client $self = shift;
     return undef if $self->{readonly};
@@ -301,14 +317,15 @@ sub store_file {
 
 =head2 store_content
 
-WRITEME
+    $mogc->store_content($key, $class, $content[, $opts]);
+
+Wrapper around new_file, print, and close.  Given a key, class, and
+file contents (scalar or scalarref), stores the file contents in
+MogileFS. Returns the number of bytes stored on success, undef on
+failure.
 
 =cut
 
-# Wrapper around new_file, print, and close.
-# Given a key, class, and file contents (scalar or scalarref), stores the
-# file contents in MogileFS. Returns the number of bytes stored on
-# success, undef on failure.
 sub store_content {
     my MogileFS::Client $self = shift;
     return undef if $self->{readonly};
@@ -329,7 +346,19 @@ sub store_content {
 
 =head2 get_paths
 
-WRITEME
+  @paths = $mogc->get_paths($key)
+  @paths = $mogc->get_paths($key, $no_verify_bool); # old way
+  @paths = $mogc->get_paths($key, { noverify => $bool }); # new way
+
+Given a key, returns an array of all the locations (HTTP URLs) that
+the file has been replicated to.
+
+If the "no verify" option is set, the mogilefsd tracker doesn't verify
+that the first item returned in the list is up/alive.  Skipping that
+check is faster, so use "noverify" if your application can do it
+faster/smarter.  For instance, when giving L<Perlbal> a list of URLs
+to reproxy to, Perlbal can intelligently find one that's alive, so use
+noverify and get out of mod_perl or whatever as soon as possible.
 
 =cut
 
@@ -373,7 +402,12 @@ sub get_paths {
 
 =head2 get_file_data
 
-WRITEME
+  $dataref = $mogc->get_file_data($key)
+
+Wrapper around get_paths & LWP, which returns scalarref of file
+contents in a scalarref.
+
+Don't use for large data, as it all comes back to you in one string.
 
 =cut
 
@@ -416,7 +450,9 @@ sub get_file_data {
 
 =head2 delete
 
-WRITEME
+    $mogc->delete($key);
+
+Delete a key from MogileFS.
 
 =cut
 
@@ -444,7 +480,10 @@ sub delete {
 
 =head2 rename
 
-WRITEME
+  $mogc->rename($oldkey, $newkey);
+
+Rename file (key) in MogileFS from oldkey to newkey.  Returns true on
+success, failure otherwise.
 
 =cut
 
@@ -472,22 +511,23 @@ sub rename {
 
 =head2 list_keys
 
-WRITEME
+    @keys = $mogc->list_keys($prefix, $after[, $limit]);
+
+Used to get a list of keys matching a certain prefix.
+
+$prefix specifies what you want to get a list of.  $after is the item
+specified as a return value from this function last time you called
+it.  $limit is optional and defaults to 1000 keys returned.
+
+In list context, returns ($after, $keys).  In scalar context, returns
+arrayref of keys.  The value $after is to be used as $after when you
+call this function again.
+
+When there are no more keys in the list, you will get back undef or
+an empty list.
 
 =cut
 
-# used to get a list of keys matching a certain prefix.  expected arguments:
-#   ( $prefix, $after, $limit )
-# prefix specifies what you want to get a list of.  after is the item specified
-# as a return value from this function last time you called it.  limit is optional
-# and defaults to 1000 keys returned.
-#
-# if you expect an array of return values, returns:
-#   ($after, $keys)
-# but if you expect only a single value, you just get the arrayref of keys.  the
-# value $after is to be used as $after when you call this function again.
-#
-# when there are no more keys in the list, you will get back undef(s).
 sub list_keys {
     my MogileFS::Client $self = shift;
     my ($prefix, $after, $limit) = @_;
@@ -511,7 +551,14 @@ sub list_keys {
 
 =head2 foreach_key
 
-WRITEME
+  $mogc->foreach_key( %OPTIONS, sub { my $key = shift; ... } );
+  $mogc->foreach_key( prefix => "foo:", sub { my $key = shift; ... } );
+
+
+Functional interface/wrapper around list_keys.
+
+Given some %OPTIONS (currently only one, "prefix"), calls your callback
+for each key matching the provided prefix.
 
 =cut
 
@@ -544,12 +591,6 @@ sub foreach_key {
     return 1;
 }
 
-=head2 sleep
-
-WRITEME
-
-=cut
-
 # just makes some sleeping happen.  first and only argument is number of
 # seconds to instruct backend thread to sleep for.
 sub sleep {
@@ -560,6 +601,26 @@ sub sleep {
         or return undef;
 
     return 1;
+}
+
+
+=head2 set_pref_ip
+
+  $mogc->set_pref_ip({ "10.0.0.2" => "10.2.0.2" });
+
+Weird option for old, weird network architecture.  Sets a mapping
+table of preferred alternate IPs, if reachable.  For instance, if
+trying to connect to 10.0.0.2 in the above example, the module would
+instead try to connect to 10.2.0.2 quickly first, then then fall back
+to 10.0.0.2 if 10.2.0.2 wasn't reachable.
+
+=cut
+
+# expects as argument a hashref of "standard-ip" => "preferred-ip"
+sub set_pref_ip {
+    my MogileFS::Client $self = shift;
+    $self->{backend}->set_pref_ip(shift)
+        if $self->{backend};
 }
 
 =head1 PLUGIN METHODS
