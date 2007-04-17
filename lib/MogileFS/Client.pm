@@ -208,6 +208,24 @@ Returns a filehandle you should then print to, and later close to
 complete the operation.  B<NOTE:> check the return value from close!
 If your close didn't succeed, the file didn't get saved!
 
+$opts_hashref can contain keys:
+
+=over
+
+=item fid
+
+Explicitly specify the fid number to use, rather than it being automatically allocated.
+
+=item create_open_args
+
+Hashref of extra key/value pairs to send to mogilefsd in create_open phase.
+
+=item create_close_args
+
+Hashref of extra key/value pairs to send to mogilefsd in create_close phase.
+
+=back
+
 =cut
 
 # returns MogileFS::NewHTTPFile object, or undef if no device
