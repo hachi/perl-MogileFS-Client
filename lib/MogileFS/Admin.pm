@@ -42,7 +42,7 @@ sub get_hosts {
     my @ret = ();
     foreach my $ct (1..$res->{hosts}) {
         push @ret, { map { $_ => $res->{"host${ct}_$_"} }
-                     qw(hostid status hostname hostip http_port http_get_port remoteroot altip altmask) };
+                     qw(hostid status hostname hostip http_port http_get_port altip altmask) };
     }
 
     return \@ret;

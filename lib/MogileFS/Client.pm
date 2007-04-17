@@ -41,7 +41,7 @@ use strict;
 use Carp;
 use IO::WrapTie;
 use LWP::UserAgent;
-use fields ('root',      # filesystem root.  only needed for now-deprecated NFS mode.  don't use.
+use fields (
             'domain',    # scalar: the MogileFS domain (namespace).
             'backend',   # MogileFS::Backend object
             'readonly',  # bool: if set, client won't permit write actions/etc.  just reads.
@@ -57,11 +57,11 @@ our $AUTOLOAD;
 
 =head2 new
 
-  $client = MogileFS::Client->new( OPTIONS );
+  $client = MogileFS::Client->new( %OPTIONS );
 
 Creates a new MogileFS::Client object.
 
-On success returns the object. On failure dies.
+Returns MogileFS::Client object on success, or dies on failure.
 
 OPTIONS:
 
@@ -110,9 +110,6 @@ sub _init {
     {
         # by default, set readonly off
         $self->{readonly} = $args{readonly} ? 1 : 0;
-
-        # root is only needed for NFS based installations
-        $self->{root} = $args{root};
 
         # get domain (required)
         $self->{domain} = $args{domain} or
@@ -371,8 +368,7 @@ sub get_paths {
 
     $self->run_hook('get_paths_end', $self, $key, $opts);
 
-    return @paths if scalar(@paths) > 0 && $paths[0] =~ m!^http://!;
-    return map { "$self->{root}/$_"} @paths;
+    return @paths;
 }
 
 =head2 get_file_data
