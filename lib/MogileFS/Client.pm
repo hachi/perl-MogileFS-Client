@@ -137,18 +137,17 @@ sub new_file {
     $bytes += 0;
     $opts ||= {};
 
-    # Takes plugin args like { 'meta.keys' => 1, 'meta.key1' => 'mtime', 'meta.value1' => time(), }
-    my $plugin_args = $opts->{plugin_args} || {};
-    my $create_close_args = {};
-
-    while (my ($key, $value) = each %$plugin_args) {
-        $create_close_args->{"plugin.$key"} = $value;
-    }
+    # Extra args to be passed along with the create_open and create_close commands.
+    # Any internally generated args of the same name will overwrite supplied ones in
+    # these hashes.
+    my $create_open_args =  $opts->{create_open_args} || {};
+    my $create_close_args = $opts->{create_close_args} || {};
 
     $self->run_hook('new_file_start', $self, $key, $class, $opts);
 
     my $res = $self->{backend}->do_request
         ("create_open", {
+            %$create_open_args,
             domain => $self->{domain},
             class  => $class,
             key    => $key,

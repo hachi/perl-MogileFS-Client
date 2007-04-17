@@ -1,3 +1,7 @@
+        * Add create_open_args and create_close_args which can be passed to
+          new_file (plus store_file and store_content). This can be used to
+          pass extra information to plugins running in the tracker.
+
 1.04 - Mar 26, 2007
 
         * add observed_state and I/O utiliz% columns to mogadm check.

@@ -328,13 +328,13 @@ sub CLOSE {
     my $devid = $self->{devid};
     my $path  = $self->{path};
 
-    my $raw_args = $self->{create_close_args};
+    my $create_close_args = $self->{create_close_args};
 
     my $key = shift || $self->{key};
 
     my $rv = $mg->{backend}->do_request
         ("create_close", {
-            %$raw_args,
+            %$create_close_args,
             fid    => $fid,
             devid  => $devid,
             domain => $domain,
