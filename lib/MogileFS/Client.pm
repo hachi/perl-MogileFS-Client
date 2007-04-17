@@ -30,8 +30,6 @@ MogileFS::Client - Client library for the MogileFS distributed file system.
  # no longer want it?
  $mogc->delete($key);
 
- # read source for more methods.  those are the major ones.
-
 =head1 DESCRIPTION
 
 This module is a client library for the MogileFS distributed file system. The class method 'new' creates a client object against a
@@ -61,10 +59,9 @@ our $AUTOLOAD;
 
   $client = MogileFS::Client->new( OPTIONS );
 
-Creates a new MogileFS::Client object, and creates a connection to the first available backend tracker
-listed in the hosts part of the supplied options.
+Creates a new MogileFS::Client object.
 
-On success returns an object (blessed ref). On failure throws a fatal exception (dies).
+On success returns the object. On failure dies.
 
 OPTIONS:
 
@@ -90,6 +87,12 @@ sub new {
 
     return $self->_init(@_);
 }
+
+=head2 reload
+
+WRITEME
+
+=cut
 
 sub reload {
     my MogileFS::Client $self = shift;
@@ -132,50 +135,44 @@ sub _init {
     return $self;
 }
 
-sub run_hook {
-    my MogileFS::Client $self = shift;
-    my $hookname = shift || return;
+=head2 last_tracker
 
-    my $hook = $self->{hooks}->{$hookname};
-    return unless $hook;
+WRITEME
 
-    eval { $hook->(@_) };
-
-    warn "MogileFS::Client hook '$hookname' threw error: $@\n" if $@;
-}
-
-sub add_hook {
-    my MogileFS::Client $self = shift;
-    my $hookname = shift || return;
-
-    if (@_) {
-        $self->{hooks}->{$hookname} = shift;
-    } else {
-        delete $self->{hooks}->{$hookname};
-    }
-}
-
-sub add_backend_hook {
-    my MogileFS::Client $self = shift;
-    my $backend = $self->{backend};
-
-    $backend->add_hook(@_);
-}
+=cut
 
 sub last_tracker {
     my MogileFS::Client $self = shift;
     return $self->{backend}->last_tracker;
 }
 
+=head2 errstr
+
+WRITEME
+
+=cut
+
 sub errstr {
     my MogileFS::Client $self = shift;
     return $self->{backend}->errstr;
 }
 
+=head2 errcode
+
+WRITEME
+
+=cut
+
 sub errcode {
     my MogileFS::Client $self = shift;
     return $self->{backend}->errcode;
 }
+
+=head2 readonly
+
+WRITEME
+
+=cut
 
 sub readonly {
     my MogileFS::Client $self = shift;
@@ -183,12 +180,24 @@ sub readonly {
     return $self->{readonly};
 }
 
+=head2 set_pref_ip
+
+WRITEME
+
+=cut
+
 # expects as argument a hashref of "standard-ip" => "preferred-ip"
 sub set_pref_ip {
     my MogileFS::Client $self = shift;
     $self->{backend}->set_pref_ip(shift)
         if $self->{backend};
 }
+
+=head2 new_file
+
+WRITEME
+
+=cut
 
 # returns MogileFS::NewHTTPFile object, or undef if no device
 # available for writing
@@ -256,6 +265,12 @@ sub new_file {
                                 );
 }
 
+=head2 store_file
+
+WRITEME
+
+=cut
+
 # Wrapper around new_file, print, and close.
 # Given a key, class, and a filehandle or filename, stores the
 # file contents in MogileFS. Returns the number of bytes stored on
@@ -287,6 +302,12 @@ sub store_file {
     $bytes;
 }
 
+=head2 store_content
+
+WRITEME
+
+=cut
+
 # Wrapper around new_file, print, and close.
 # Given a key, class, and file contents (scalar or scalarref), stores the
 # file contents in MogileFS. Returns the number of bytes stored on
@@ -308,6 +329,12 @@ sub store_content {
     $fh->close or return;
     length($content);
 }
+
+=head2 get_paths
+
+WRITEME
+
+=cut
 
 # old style calling:
 #   get_paths(key, noverify)
@@ -348,6 +375,12 @@ sub get_paths {
     return map { "$self->{root}/$_"} @paths;
 }
 
+=head2 get_file_data
+
+WRITEME
+
+=cut
+
 # given a key, returns a scalar reference pointing at a string containing
 # the contents of the file. takes one parameter; a scalar key to get the
 # data for the file.
@@ -385,6 +418,12 @@ sub get_file_data {
     return undef;
 }
 
+=head2 delete
+
+WRITEME
+
+=cut
+
 # this method returns undef only on a fatal error such as inability to actually
 # delete a resource and inability to contact the server.  attempting to delete
 # something that doesn't exist counts as success, as it doesn't exist.
@@ -407,17 +446,11 @@ sub delete {
     return 1;
 }
 
-# just makes some sleeping happen.  first and only argument is number of
-# seconds to instruct backend thread to sleep for.
-sub sleep {
-    my MogileFS::Client $self = shift;
-    my $duration = shift;
+=head2 rename
 
-    $self->{backend}->do_request("sleep", { duration => $duration + 0 })
-        or return undef;
+WRITEME
 
-    return 1;
-}
+=cut
 
 # this method renames a file.  it returns an undef on error (only a fatal error
 # is considered as undef; "file didn't exist" isn't an error).
@@ -440,6 +473,12 @@ sub rename {
 
     return 1;
 }
+
+=head2 list_keys
+
+WRITEME
+
+=cut
 
 # used to get a list of keys matching a certain prefix.  expected arguments:
 #   ( $prefix, $after, $limit )
@@ -474,6 +513,12 @@ sub list_keys {
     return wantarray ? ($resafter, $reslist) : $reslist;
 }
 
+=head2 foreach_key
+
+WRITEME
+
+=cut
+
 sub foreach_key {
     my MogileFS::Client $self = shift;
     my $callback = pop;
@@ -502,6 +547,30 @@ sub foreach_key {
     }
     return 1;
 }
+
+=head2 sleep
+
+WRITEME
+
+=cut
+
+# just makes some sleeping happen.  first and only argument is number of
+# seconds to instruct backend thread to sleep for.
+sub sleep {
+    my MogileFS::Client $self = shift;
+    my $duration = shift;
+
+    $self->{backend}->do_request("sleep", { duration => $duration + 0 })
+        or return undef;
+
+    return 1;
+}
+
+=head1 PLUGIN METHODS
+
+WRITEME
+
+=cut
 
 # used to support plugins that have modified the server, this builds things into
 # an argument list and passes them back to the server
@@ -538,6 +607,50 @@ sub AUTOLOAD {
     goto &$AUTOLOAD;
 }
 
+=head1 HOOKS
+
+=head2 add_hook
+
+WRITEME
+
+=cut
+
+sub add_hook {
+    my MogileFS::Client $self = shift;
+    my $hookname = shift || return;
+
+    if (@_) {
+        $self->{hooks}->{$hookname} = shift;
+    } else {
+        delete $self->{hooks}->{$hookname};
+    }
+}
+
+sub run_hook {
+    my MogileFS::Client $self = shift;
+    my $hookname = shift || return;
+
+    my $hook = $self->{hooks}->{$hookname};
+    return unless $hook;
+
+    eval { $hook->(@_) };
+
+    warn "MogileFS::Client hook '$hookname' threw error: $@\n" if $@;
+}
+
+=head2 add_backend_hook
+
+WRITEME
+
+=cut
+
+sub add_backend_hook {
+    my MogileFS::Client $self = shift;
+    my $backend = $self->{backend};
+
+    $backend->add_hook(@_);
+}
+
 
 ################################################################################
 # MogileFS class methods
@@ -570,7 +683,7 @@ L<http://www.danga.com/mogilefs/>
 =head1 COPYRIGHT
 
 This module is Copyright 2003-2004 Brad Fitzpatrick,
-and copyright 2005-2006 Six Apart, Ltd.
+and copyright 2005-2007 Six Apart, Ltd.
 
 All rights reserved.
 
