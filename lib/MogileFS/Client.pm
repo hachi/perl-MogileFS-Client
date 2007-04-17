@@ -1,6 +1,44 @@
 #!/usr/bin/perl
 package MogileFS::Client;
 
+=head1 NAME
+
+MogileFS::Client - Client library for the MogileFS distributed file system.
+
+=head1 SYNOPSIS
+
+ use MogileFS::Client;
+
+ # create client object w/ server-configured namespace and IPs of trackers
+ $mogc = MogileFS::Client->new(domain => "foo.com::my_namespace",
+                               hosts  => ['10.0.0.2', '10.0.0.3']);
+
+ # create a file
+ $key   = "image_of_userid:$userid";   # mogile is a flat namespace.  no paths.
+ $class = "user_images";               # must be configured on server
+ $fh = $mogc->new_file($key, $class);
+
+ print $fh $data;
+
+ unless ($fh->close) {
+    die "Error writing file: " . $mogc->errcode . ": " . $mogc->errstr;
+ }
+
+ # Find the URLs that the file was replicated to.  May change over time.
+ @urls = $mogc->get_paths($key);
+
+ # no longer want it?
+ $mogc->delete($key);
+
+ # read source for more methods.  those are the major ones.
+
+=head1 DESCRIPTION
+
+This module is a client library for the MogileFS distributed file system. The class method 'new' creates a client object against a
+particular mogilefs tracker and domain. This object may then be used to store and retrieve content easily from MogileFS.
+
+=cut
+
 use strict;
 use Carp;
 use IO::WrapTie;
@@ -496,40 +534,9 @@ sub _debug {
 1;
 __END__
 
-=head1 NAME
+=head1 SEE ALSO
 
-MogileFS::Client - client library for the MogileFS distributed file system
-
-=head1 SYNOPSIS
-
- use MogileFS::Client;
-
- # create client object w/ server-configured namespace and IPs of trackers
- $mogc = MogileFS::Client->new(domain => "foo.com::my_namespace",
-                               hosts  => ['10.0.0.2', '10.0.0.3']);
-
- # create a file
- $key   = "image_of_userid:$userid";   # mogile is a flat namespace.  no paths.
- $class = "user_images";               # must be configured on server
- $fh = $mogc->new_file($key, $class);
-
- print $fh $data;
-
- unless ($fh->close) {
-    die "Error writing file: " . $mogc->errcode . ": " . $mogc->errstr;
- }
-
- # Find the URLs that the file was replicated to.  May change over time.
- @urls = $mogc->get_paths($key);
-
- # no longer want it?
- $mogc->delete($key);
-
- # read source for more methods.  those are the major ones.
-
-=head1 DESCRIPTION
-
-See http://www.danga.com/mogilefs/
+L<http://www.danga.com/mogilefs/>
 
 =head1 COPYRIGHT
 
