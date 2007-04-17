@@ -55,6 +55,35 @@ use MogileFS::NewHTTPFile;
 
 our $AUTOLOAD;
 
+=head1 METHODS
+
+=head2 new
+
+  $client = MogileFS::Client->new( OPTIONS );
+
+Creates a new MogileFS::Client object, and creates a connection to the first available backend tracker
+listed in the hosts part of the supplied options.
+
+On success returns an object (blessed ref). On failure throws a fatal exception (dies).
+
+OPTIONS:
+
+=over
+
+=item hosts
+
+Arrayref of 'host:port' strings to connect to as backend trackers in this client.
+
+=item domain
+
+String representing the mogile domain which this MogileFS client is associated with. (All create/delete/fetch operations
+will be performed against this mogile domain). See the mogadm shell command and its 'domain' category of operations for
+information on manipulating the list of possible domains on a MogileFS system.
+
+=back
+
+=cut
+
 sub new {
     my MogileFS::Client $self = shift;
     $self = fields::new($self) unless ref $self;
