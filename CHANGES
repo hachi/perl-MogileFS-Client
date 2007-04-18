@@ -1,3 +1,5 @@
+        * add fsck management commands to MogileFS::Admin
+
 1.05 - 2007-04-16
 
         * POD docs!

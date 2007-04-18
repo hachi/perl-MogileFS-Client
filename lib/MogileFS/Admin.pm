@@ -454,6 +454,26 @@ sub slave_delete {
     return 1;
 }
 
+sub fsck_start {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("fsck_start", {});
+}
+
+sub fsck_stop {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("fsck_stop", {});
+}
+
+sub fsck_reset {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("fsck_reset", {});
+}
+
+sub fsck_clearlog {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("fsck_clearlog", {});
+}
+
 ################################################################################
 # MogileFS::Admin class methods
 #
