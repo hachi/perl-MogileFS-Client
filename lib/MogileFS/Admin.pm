@@ -479,6 +479,11 @@ sub fsck_clearlog {
     return $self->{backend}->do_request("fsck_clearlog", {});
 }
 
+sub fsck_status {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("fsck_status", {});
+}
+
 ################################################################################
 # MogileFS::Admin class methods
 #
