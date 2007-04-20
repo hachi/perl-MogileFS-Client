@@ -484,6 +484,26 @@ sub fsck_status {
     return $self->{backend}->do_request("fsck_status", {});
 }
 
+sub fsck_log_rows {
+    my MogileFS::Admin $self = shift;
+    my %args = @_;
+    my $after = delete $args{after_logid};
+    die if %args;
+
+    my $ret = $self->{backend}->do_request("fsck_getlog", {
+        after_logid => $after,
+    });
+    my @ret;
+    for (my $i = 1; $i <= $ret->{row_count}; $i++) {
+        my $rec = {};
+        foreach my $k (qw(logid utime fid evcode devid)) {
+            $rec->{$k} = $ret->{"row_${i}_$k"};
+        }
+        push @ret, $rec;
+    }
+    return @ret;
+}
+
 ################################################################################
 # MogileFS::Admin class methods
 #
