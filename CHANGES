@@ -1,4 +1,6 @@
-        * add fsck management commands to MogileFS::Admin
+1.06 - 2006-04-20
+
+        * add fsck mgmt/status/querying commands to MogileFS::Admin
 
 1.05 - 2007-04-16
 
