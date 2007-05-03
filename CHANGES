@@ -1,3 +1,8 @@
+1.07 - 2006-05-03
+
+        * 'settings list' and 'settings set <key> <value>' commands.
+          use for enabling rebalancing, slaves, memcaches, etc.
+
 1.06 - 2006-04-20
 
         * add fsck mgmt/status/querying commands to MogileFS::Admin

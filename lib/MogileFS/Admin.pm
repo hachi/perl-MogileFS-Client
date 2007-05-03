@@ -504,6 +504,31 @@ sub fsck_log_rows {
     return @ret;
 }
 
+sub set_server_setting {
+    my MogileFS::Admin $self = shift;
+    my ($key, $val) = @_;
+    my $res = $self->{backend}->do_request("set_server_setting", {
+        key   => $key,
+        value => $val,
+    });
+    return 0 unless $res;
+    return 1;
+}
+
+sub server_settings {
+    my MogileFS::Admin $self = shift;
+    my ($key, $val) = @_;
+    my $res = $self->{backend}->do_request("server_settings", {});
+    return 0 unless $res;
+    my $ret = {};
+    for (my $i = 1; $i <= $res->{key_count}; $i++) {
+        $ret->{$res->{"key_$i"}} = $res->{"value_$i"};
+    }
+    return $ret;
+}
+
+
+
 ################################################################################
 # MogileFS::Admin class methods
 #

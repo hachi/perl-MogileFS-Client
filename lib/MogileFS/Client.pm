@@ -51,6 +51,8 @@ use Time::HiRes ();
 use MogileFS::Backend;
 use MogileFS::NewHTTPFile;
 
+our $VERSION = '1.07';
+
 our $AUTOLOAD;
 
 =head1 METHODS
