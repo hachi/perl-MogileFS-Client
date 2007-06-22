@@ -1,3 +1,5 @@
+        * Include 'clear_cache' command.
+
 1.07 - 2006-05-03
 
         * 'settings list' and 'settings set <key> <value>' commands.
@@ -33,12 +35,12 @@
           plugins (Mark Smith)
 
         * Andreas J. Koenig <andreas.koenig.gmwojprw@franz.ak.mind.de>:
-	  The following bugfix guards against externally influenced $/. In
-	  our case, somebody (not @danga :) had set $/ to undef and so the
-	  application was hanging forever.
+          The following bugfix guards against externally influenced $/. In
+          our case, somebody (not @danga :) had set $/ to undef and so the
+          application was hanging forever.
 
 1.01 - Jan 10, 2005
 
         * fix CPU spinning bug in _getline where we didn't handle
-	  sysread() returning 0.  (Brad)
+          sysread() returning 0.  (Brad)
 

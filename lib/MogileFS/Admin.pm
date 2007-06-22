@@ -90,6 +90,15 @@ sub list_fids {
     return $ret;
 }
 
+sub clear_cache {
+    my MogileFS::Admin $self = shift;
+    # do the request, default to request all stats if they didn't specify any
+    push @_, 'all' unless @_;
+    my $res = $self->{backend}->do_request("clear_cache", { map { $_ => 1 } @_ })
+        or return undef;
+    return 1;
+}
+
 # get a hashref of statistics on how the MogileFS server is doing.  there are several
 # sections of statistics, in this form:
 # {
