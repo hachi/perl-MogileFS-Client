@@ -9,13 +9,16 @@ MogileFS::Client - Client library for the MogileFS distributed file system.
 
  use MogileFS::Client;
 
- # create client object w/ server-configured namespace and IPs of trackers
+ # create client object w/ server-configured namespace 
+ # and IPs of trackers
  $mogc = MogileFS::Client->new(domain => "foo.com::my_namespace",
                                hosts  => ['10.0.0.2', '10.0.0.3']);
 
  # create a file
- $key   = "image_of_userid:$userid";   # mogile is a flat namespace.  no paths.
- $class = "user_images";               # must be configured on server
+ # mogile is a flat namespace.  no paths.
+ $key   = "image_of_userid:$userid";   
+ # must be configured on server
+ $class = "user_images";               
  $fh = $mogc->new_file($key, $class);
 
  print $fh $data;
@@ -24,7 +27,8 @@ MogileFS::Client - Client library for the MogileFS distributed file system.
     die "Error writing file: " . $mogc->errcode . ": " . $mogc->errstr;
  }
 
- # Find the URLs that the file was replicated to.  May change over time.
+ # Find the URLs that the file was replicated to.
+ # May change over time.
  @urls = $mogc->get_paths($key);
 
  # no longer want it?
