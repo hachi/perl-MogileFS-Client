@@ -377,6 +377,10 @@ sub store_content {
 Given a key, returns an array of all the locations (HTTP URLs) that
 the file has been replicated to.
 
+=over
+
+=item noverify
+
 If the "no verify" option is set, the mogilefsd tracker doesn't verify
 that the first item returned in the list is up/alive.  Skipping that
 check is faster, so use "noverify" if your application can do it
@@ -384,12 +388,26 @@ faster/smarter.  For instance, when giving L<Perlbal> a list of URLs
 to reproxy to, Perlbal can intelligently find one that's alive, so use
 noverify and get out of mod_perl or whatever as soon as possible.
 
+=item zone
+
+If the zone option is set to 'alt', the mogilefsd tracker will use the
+alternative IP for each host if available, while constructing the paths.
+
+=item pathcount
+
+If the pathcount option is set to a positive integer greater than 2, the
+mogilefsd tracker will attempt to return that many different paths (if
+available) to the same file. If not present or out of range, this value
+defaults to 2.
+
+=back
+
 =cut
 
 # old style calling:
 #   get_paths(key, noverify)
 # new style calling:
-#   get_paths(key, { noverify => 0/1, zone => "zone" });
+#   get_paths(key, { noverify => 0/1, zone => "alt", pathcount => 2..N });
 # but with both, second parameter is optional
 #
 # returns list of URLs that key can be found at, or the empty
