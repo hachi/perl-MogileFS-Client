@@ -1,3 +1,5 @@
+        * Include update_device command for consistency.
+
         * Include 'clear_cache' command.
 
 1.07 - 2006-05-03

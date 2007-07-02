@@ -274,6 +274,29 @@ sub create_device {
     return 1;
 }
 
+# edit a device
+sub update_device {
+    my MogileFS::Admin $self = shift;
+    return undef if $self->{readonly};
+    my $host = shift;
+    my $device = shift;
+    return undef unless $host;
+    return undef unless $device;
+    
+    my $args = shift;
+    return undef unless ref $args eq 'HASH';
+
+    # TODO: provide a native update_device in the MogileFS::Admin command set.
+    if($args->{status}){
+        $self->change_device_state($host,$device,$args->{status}) or return undef;
+    }
+    if($args->{weight}){
+        $self->change_device_state($host,$device,$args->{weight}) or return undef;
+    }
+
+    return 1;
+}
+
 # change the state of a device; pass in the hostname of the host the
 # device is located on, the device id number, and the state you want
 # the host to be set to.  returns 1 on success, undef on error.
