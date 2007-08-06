@@ -282,16 +282,16 @@ sub update_device {
     my $device = shift;
     return undef unless $host;
     return undef unless $device;
-    
+
     my $args = shift;
     return undef unless ref $args eq 'HASH';
 
     # TODO: provide a native update_device in the MogileFS::Admin command set.
-    if($args->{status}){
-        $self->change_device_state($host,$device,$args->{status}) or return undef;
+    if ($args->{status}){
+        $self->change_device_state($host, $device, $args->{status}) or return undef;
     }
-    if($args->{weight}){
-        $self->change_device_state($host,$device,$args->{weight}) or return undef;
+    if ($args->{weight}){
+        $self->change_device_weight($host, $device, $args->{weight}) or return undef;
     }
 
     return 1;
