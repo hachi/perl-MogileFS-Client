@@ -1,6 +1,10 @@
+1.08 - 2007-08-06
+
         * Include update_device command for consistency.
 
         * Include 'clear_cache' command.
+
+        * updated docs
 
 1.07 - 2006-05-03
 
