@@ -1,3 +1,11 @@
+        * Add experimental 'edit_file' command, making use of ClientHTTPFile.
+
+        * Add 'read_file' command, which returns a seekable filehandle
+        to a mogile key, making use of ClientHTTPFile.
+
+        * Add new ClientHTTPFile backend as an alternate to NewHTTPFile.
+        This is used if the 'largefile' option is passed to new_file.
+
 1.08 - 2007-08-06
 
         * Include update_device command for consistency.
