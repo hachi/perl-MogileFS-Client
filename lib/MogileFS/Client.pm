@@ -205,7 +205,8 @@ sub readonly {
 
   $mogc->new_file($key)
   $mogc->new_file($key, $class)
-  $mogc->new_file($key, $class, $opts_hashref)
+  $mogc->new_file($key, $class, $content_length)
+  $mogc->new_file($key, $class, $content_length , $opts_hashref)
 
 Start creating a new filehandle with the given key, and option given
 class and options.
