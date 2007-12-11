@@ -500,9 +500,11 @@ sub fsck_reset {
     my MogileFS::Admin $self = shift;
     my %opts = @_;
     my $polonly = delete $opts{policy_only};
+    my $startpos = delete $opts{startpos};
     Carp::croak("Unknown options: ". join(", ", keys %opts)) if %opts;
     return $self->{backend}->do_request("fsck_reset", {
         policy_only => $polonly,
+        startpos    => $startpos,
     });
 }
 

@@ -1,3 +1,5 @@
+        * Add optional startpos argument to fsck_reset.
+
         * Add experimental 'edit_file' command, making use of ClientHTTPFile.
 
         * Add 'read_file' command, which returns a seekable filehandle
