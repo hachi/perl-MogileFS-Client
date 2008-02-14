@@ -536,18 +536,16 @@ sub get_paths {
 
     # handle parameters, if any
     my ($noverify, $zone);
-
+    unless (ref $opts) {
+        $opts = { noverify => $opts };
+    }
     my %extra_args;
 
-    if (ref $opts) {
-        $noverify = 1 if $opts->{noverify};
-        $zone = $opts->{zone} || undef;
-    } else {
-        $noverify = 1 if $opts;
-    }
+    $noverify = 1 if $opts->{noverify};
+    $zone = $opts->{zone};
 
     if (my $pathcount = delete $opts->{pathcount}) {
-	$extra_args{pathcount} = $pathcount;
+        $extra_args{pathcount} = $pathcount;
     }
 
     $self->run_hook('get_paths_start', $self, $key, $opts);
