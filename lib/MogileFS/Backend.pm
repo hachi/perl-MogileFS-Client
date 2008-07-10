@@ -12,7 +12,7 @@ use MogileFS::Client;
 
 use fields ('hosts',        # arrayref of "$host:$port" of mogilefsd servers
             'host_dead',    # "$host:$port" -> $time  (of last connect failure)
-            'lasterr',      # string: \w+ identifer of last error
+            'lasterr',      # string: \w+ identifier of last error
             'lasterrstr',   # string: english of last error
             'sock_cache',   # cached socket to mogilefsd tracker
             'pref_ip',      # hashref; { ip => preferred ip }

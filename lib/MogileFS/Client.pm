@@ -155,7 +155,7 @@ sub last_tracker {
 
 =head2 errstr
 
-Returns string representation of the last error that occured.  It
+Returns string representation of the last error that occurred.  It
 includes the error code (same as method 'errcode') and a space before
 the optional English error message.
 

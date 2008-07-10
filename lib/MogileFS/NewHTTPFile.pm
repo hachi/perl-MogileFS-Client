@@ -179,7 +179,7 @@ sub _getline {
 }
 
 # abstracted write function that uses non-blocking I/O and checking for
-# writability to ensure that we don't get stuck doing a write if the
+# writeability to ensure that we don't get stuck doing a write if the
 # node we're talking to goes down.  also handles logic to fall back to
 # a backup node if we're on our first write and the first node is down.
 # this entire function is a blocking function, it just uses intelligent
