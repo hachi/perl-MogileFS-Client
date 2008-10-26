@@ -12,7 +12,7 @@ MogileFS::Client - Client library for the MogileFS distributed file system.
  # create client object w/ server-configured namespace 
  # and IPs of trackers
  $mogc = MogileFS::Client->new(domain => "foo.com::my_namespace",
-                               hosts  => ['10.0.0.2', '10.0.0.3']);
+                               hosts  => ['10.0.0.2:7001', '10.0.0.3:7001']);
 
  # create a file
  # mogile is a flat namespace.  no paths.
