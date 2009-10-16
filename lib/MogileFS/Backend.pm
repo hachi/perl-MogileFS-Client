@@ -159,7 +159,7 @@ sub do_request {
     unless (_wait_for_readability(fileno($sock), $self->{timeout})) {
         close($sock);
         $self->run_hook('do_request_read_timeout', $cmd, $self->{last_host_connected});
-        return _fail("tracker socket never became readable ($self->{last_host_connected}) when sending command: [$req]");
+        return _fail("timed out after $self->{timeout}s against $self->{last_host_connected} when sending command: [$req]");
     }
 
     # guard against externally-modified $/ changes.  patch from
