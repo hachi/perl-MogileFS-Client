@@ -1,3 +1,7 @@
+1.09 - 2009-10-16
+
+        * Change really misleading timeout error message.
+
         * Add optional startpos argument to fsck_reset.
 
         * Add experimental 'edit_file' command, making use of ClientHTTPFile.
