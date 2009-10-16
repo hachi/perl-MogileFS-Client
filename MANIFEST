@@ -4,6 +4,7 @@ MANIFEST.SKIP
 lib/MogileFS/Client.pm
 lib/MogileFS/Admin.pm
 lib/MogileFS/Backend.pm
+lib/MogileFS/ClientHTTPFile.pm
 lib/MogileFS/NewHTTPFile.pm
 META.yml                                 Module meta-data (added by MakeMaker)
 t/00use.t
