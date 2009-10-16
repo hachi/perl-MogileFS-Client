@@ -6,7 +6,7 @@ BEGIN {
 }
 
 use strict;
-use Test::More tests => $NUM_TESTS;
+use Test::More;
 use MogileFS::Client;
 use LWP;
 
@@ -18,8 +18,16 @@ my $mogc = MogileFS::Client->new(hosts  => ['127.0.0.1:7001'],
                                  domain => $test_ns);
 
 my $key = 'edit_test_file';
-                           
-my $fh = $mogc->new_file($key, undef, undef, { largefile => 1 } );
+
+my $fh;                           
+eval { $fh = $mogc->new_file($key, undef, undef, { largefile => 1 } ); };
+
+if ($@ =~ m/couldn't connect/) {
+    plan skip_all => "No mogilefsd process running on 127.0.0.1:7001";
+    exit 0;
+} else {
+    plan tests => $NUM_TESTS;
+}
 
 ok($fh, "file handle using HTTPFile");
 
