@@ -11,7 +11,9 @@ sub new {
     my %args = @_;
 
     $self->{readonly} = $args{readonly} ? 1 : 0;
-    $self->{backend} = MogileFS::Backend->new( hosts => $args{hosts} )
+    my %backend_args = (  hosts => $args{hosts} );
+    $backend_args{timeout} = $args{timeout} if $args{timeout};
+    $self->{backend} = MogileFS::Backend->new( %backend_args )
         or _fail("couldn't instantiate MogileFS::Backend");
 
     return $self;
