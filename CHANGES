@@ -1,3 +1,7 @@
+1.10 - 2009-12-05
+
+        * Support sending a timeout for admin commands (robbat2)
+
 1.09 - 2009-10-16
 
         * Change really misleading timeout error message.
