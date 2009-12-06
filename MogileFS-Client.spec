@@ -1,16 +1,16 @@
 name:      perl-MogileFS-Client
 summary:   perl-MogileFS-Client - Perl client library for accessing MogileFS
-version:   1.05
+version:   1.10
 release:   1
-vendor:    Brad Fitzpatrick <brad@danga.com>
+vendor:    Alan Kasindorf <dormando@rydia.net>
 packager:  Jonathan Steinert <hachi@cpan.org>
 license:   Artistic
 group:     Applications/CPAN
 buildroot: %{_tmppath}/%{name}-%{version}-%(id -u -n)
 buildarch: noarch
 source:    MogileFS-Client-%{version}.tar.gz
-requires:  perl-IO-stringy >= 2.102
-buildrequires:  perl-IO-stringy >= 2.102
+requires:  perl(IO::WrapTie) >= 2.102
+buildrequires:  perl(IO::WrapTie) >= 2.102
 
 %description
 Perl client library for accessing MogileFS
