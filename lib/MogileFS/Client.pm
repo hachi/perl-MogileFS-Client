@@ -56,7 +56,7 @@ use MogileFS::Backend;
 use MogileFS::NewHTTPFile;
 use MogileFS::ClientHTTPFile;
 
-our $VERSION = '1.09';
+our $VERSION = '1.10';
 
 our $AUTOLOAD;
 
