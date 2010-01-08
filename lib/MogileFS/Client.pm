@@ -677,7 +677,8 @@ sub rename {
 
 =head2 list_keys
 
-    @keys = $mogc->list_keys($prefix, $after[, $limit]);
+    $keys = $mogc->list_keys($prefix, $after[, $limit]);
+    ($after, $keys) = $mogc->list_keys($prefix, $after[, $limit]);
 
 Used to get a list of keys matching a certain prefix.
 
