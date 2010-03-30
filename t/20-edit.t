@@ -10,6 +10,10 @@ use Test::More;
 use MogileFS::Client;
 use LWP;
 
+# Sorry, uncomment this if you intend to test/use the feature.
+plan skip_all => "experimental/unfinished feature, skipping tests";
+exit 0;
+
 my $test_ns  = "humyo";
 my $data     = "0123456789" x 10;
 my $data_len = length $data;
