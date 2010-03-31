@@ -1,3 +1,6 @@
+        * Add chunk_size option for store_file to speed up large uploads
+          (dormando)
+
         * Add extra info to write failure errors (t0m)
 
 1.10 - 2009-12-05

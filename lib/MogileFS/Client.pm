@@ -420,13 +420,26 @@ sub read_file {
 
 =head2 store_file
 
-  $mogc->store_file($key, $class, $fh_or_filename[, $opts_hash])
+  $mogc->store_file($key, $class, $fh_or_filename[, $opts_hashref])
 
 Wrapper around new_file, print, and close.
 
 Given a key, class, and a filehandle or filename, stores the file
 contents in MogileFS.  Returns the number of bytes stored on success,
 undef on failure.
+
+$opts_hashref can contain keys for new_file, and also the following:
+
+=over
+
+=item chunk_size
+
+Number of bytes to read and write and write at once out of the larger file.
+Defaults to 8192 bytes. Increasing this can increase performance at the cost
+of more memory used while uploading the file.
+Note that this mostly helps when using largefile => 1
+
+=back
 
 =cut
 
@@ -437,6 +450,7 @@ sub store_file {
     my($key, $class, $file, $opts) = @_;
     $self->run_hook('store_file_start', $self, $key, $class, $opts);
 
+    my $chunk_size = $opts->{chunk_size} || 8192;
     my $fh = $self->new_file($key, $class, undef, $opts) or return;
     my $fh_from;
     if (ref($file)) {
@@ -445,7 +459,7 @@ sub store_file {
         open $fh_from, $file or return;
     }
     my $bytes;
-    while (my $len = read $fh_from, my($chunk), 8192) {
+    while (my $len = read $fh_from, my($chunk), $chunk_size) {
         $fh->print($chunk);
         $bytes += $len;
     }
