@@ -1,3 +1,5 @@
+        * Don't reuse dead socket on more error conditions (t0m)
+
         * Add chunk_size option for store_file to speed up large uploads
           (dormando)
 

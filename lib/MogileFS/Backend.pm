@@ -159,6 +159,7 @@ sub do_request {
     unless (_wait_for_readability(fileno($sock), $self->{timeout})) {
         close($sock);
         $self->run_hook('do_request_read_timeout', $cmd, $self->{last_host_connected});
+        undef $self->{sock_cache};
         return _fail("timed out after $self->{timeout}s against $self->{last_host_connected} when sending command: [$req]");
     }
 
@@ -173,8 +174,10 @@ sub do_request {
 
     _debug("RESPONSE: $line");
 
-    return _fail("socket closed on read")
-        unless defined $line;
+    unless (defined $line) {
+        undef $self->{sock_cache};
+        return _fail("socket closed on read");
+    }
 
     # ERR <errcode> <errstr>
     if ($line =~ /^ERR\s+(\w+)\s*(\S*)/) {
@@ -191,6 +194,7 @@ sub do_request {
         return $args;
     }
 
+    undef $self->{sock_cache};
     _fail("invalid response from server: [$line]");
     return undef;
 }
