@@ -158,7 +158,9 @@ sub get_domains {
         $ret->{$res->{"domain$i"}} = {
             map {
                 $res->{"domain${i}class${_}name"} =>
-                    $res->{"domain${i}class${_}mindevcount"}
+                    { mindevcount => $res->{"domain${i}class${_}mindevcount"},
+                      replpolicy  => $res->{"domain${i}class${_}replpolicy"} || '',
+                    }
             } (1..$res->{"domain${i}classes"})
         };
     }
@@ -589,13 +591,13 @@ sub _mod_class {
     my MogileFS::Admin $self = shift;
     return undef if $self->{readonly};
 
-    my ($domain, $class, $mindevcount, $verb) = @_;
+    my ($domain, $class, $args, $verb) = @_;
     $verb ||= 'create';
 
     my $res = $self->{backend}->do_request("${verb}_class", {
         domain => $domain,
         class => $class,
-        mindevcount => $mindevcount,
+        %$args,
     });
     return undef unless $res->{class} eq $class;
 
