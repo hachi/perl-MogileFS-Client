@@ -784,6 +784,26 @@ sub sleep {
     return 1;
 }
 
+=head2 update_class
+
+    $mogc->update_class($key, $newclass);
+
+Update the replication class of a pre-existing file, causing
+the file to become more or less replicated.
+
+=cut
+
+sub update_class {
+    my MogileFS::Client $self = shift;
+    my ($key, $class) = @_;
+    my $res = $self->{backend}->do_request
+            ("updateclass", {
+                domain => $self->{domain},
+                key => $key,
+                class => $class,
+            }) or return undef;
+    return $res;
+}
 
 =head2 set_pref_ip
 
