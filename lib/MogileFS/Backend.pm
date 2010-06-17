@@ -291,7 +291,9 @@ sub _sock_to_host { # (host)
     # now try the original ip
     unless ($connected) {
         socket($sock, PF_INET, SOCK_STREAM, $proto);
-        $sin = Socket::sockaddr_in($port, Socket::inet_aton($ip));
+        my $aton_ip = Socket::inet_aton($ip)
+            or return undef;
+        $sin = Socket::sockaddr_in($port, $aton_ip);
         return undef unless _connect_sock($sock, $sin);
         $self->{last_host_connected} = $host;
     }
