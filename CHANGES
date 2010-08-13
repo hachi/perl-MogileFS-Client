@@ -1,4 +1,6 @@
-        * update_class support (t0m)
+1.12 - 2010-08-13
+
+        * update_class command (requires 2.37 of mogilefs-server) (t0m)
 
         * Improve error message on hostname lookup failure (t0m)
 
