@@ -101,50 +101,6 @@ sub clear_cache {
     return 1;
 }
 
-# get a hashref of statistics on how the MogileFS server is doing.  there are several
-# sections of statistics, in this form:
-# {
-#     replication => { "domain-name" => { "class-name" => { devcount => filecount }, ... }, ... },
-# }
-sub get_stats {
-    my MogileFS::Admin $self = shift;
-    my $ret = {};
-
-    # do the request, default to request all stats if they didn't specify any
-    push @_, 'all' unless @_;
-    my $res = $self->{backend}->do_request("stats", { map { $_ => 1 } @_ })
-        or return undef;
-
-    # get replication statistics
-    foreach my $i (1..$res->{"replicationcount"}) {
-        $ret->{replication}->{$res->{"replication${i}domain"}}->{$res->{"replication${i}class"}}->{$res->{"replication${i}devcount"}} = $res->{"replication${i}files"};
-    }
-
-    # get file statistics
-    foreach my $i (1..$res->{"filescount"}) {
-        $ret->{files}->{$res->{"files${i}domain"}}->{$res->{"files${i}class"}} = $res->{"files${i}files"};
-    }
-
-    # get device statistics
-    foreach my $i (1..$res->{"devicescount"}) {
-        $ret->{devices}->{$res->{"devices${i}id"}} = {
-            host => $res->{"devices${i}host"},
-            status => $res->{"devices${i}status"},
-            files => $res->{"devices${i}files"},
-        };
-    }
-
-    # get fid statistics if they're provided
-    if ($res->{fidmax}) {
-        $ret->{fids} = {
-            max => $res->{fidmax},
-        };
-    }
-
-    # return the created response
-    return $ret;
-}
-
 # get a hashref of the domains we know about in the format of
 #   { domain_name => { class_name => mindevcount, class_name => mindevcount, ... }, ... }
 sub get_domains {
