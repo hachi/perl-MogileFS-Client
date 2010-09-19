@@ -565,7 +565,34 @@ sub server_settings {
     return $ret;
 }
 
+sub rebalance_status {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("rebalance_status", {});
+}
 
+sub rebalance_start {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("rebalance_start", {});
+}
+
+sub rebalance_test {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("rebalance_test", {});
+}
+
+sub rebalance_stop {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("rebalance_stop", {});
+}
+
+sub rebalance_set_policy {
+    my MogileFS::Admin $self = shift;
+
+    my $policy = shift;
+    return $self->{backend}->do_request("rebalance_set_policy", {
+        policy => $policy,
+    });
+}
 
 ################################################################################
 # MogileFS::Admin class methods
