@@ -1,3 +1,5 @@
+        * rebalance admin commands
+
 1.12 - 2010-08-13
 
         * update_class command (requires 2.37 of mogilefs-server) (t0m)
