@@ -541,6 +541,11 @@ sub rebalance_stop {
     return $self->{backend}->do_request("rebalance_stop", {});
 }
 
+sub rebalance_reset {
+    my MogileFS::Admin $self = shift;
+    return $self->{backend}->do_request("rebalance_reset", {});
+}
+
 sub rebalance_set_policy {
     my MogileFS::Admin $self = shift;
 
