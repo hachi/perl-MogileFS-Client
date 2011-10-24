@@ -45,6 +45,7 @@ use strict;
 use Carp;
 use IO::WrapTie;
 use LWP::UserAgent;
+use Symbol;
 use fields (
             'domain',    # scalar: the MogileFS domain (namespace).
             'backend',   # MogileFS::Backend object
@@ -453,7 +454,7 @@ sub store_file {
     my $chunk_size = $opts->{chunk_size} || 8192;
     my $fh = $self->new_file($key, $class, undef, $opts) or return;
     my $fh_from;
-    if (ref($file)) {
+    if (defined fileno(Symbol::qualify_to_ref($file))) {
         $fh_from = $file;
     } else {
         open $fh_from, $file or return;
